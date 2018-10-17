@@ -20,6 +20,7 @@ namespace fs=std::experimental::filesystem;
 
 #include <iostream>
 #include <cassert>
+#include <cstring>
 
 struct NoiseInfo
 {

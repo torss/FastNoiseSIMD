@@ -1515,9 +1515,9 @@ static void CallBuildFractal(NoiseType noiseType, PerturbType perturbType, Fract
 {
     switch(fractalType)
     {
-//    case FractalType::None:
+    case FractalType::None:
 //        CallBuild<_SIMDType, _BuildType, FractalType::None, _cellularDistance, _cellularReturnType, _LookupNoiseType>(noiseType, perturbType, args...);
-//        break;
+        break;
     case FractalType::FBM:
         CallBuild<_SIMDType, _BuildType, FractalType::FBM, _cellularDistance, _cellularReturnType, _LookupNoiseType>(noiseType, perturbType, args...);
         break;
@@ -1640,9 +1640,9 @@ static void CallBuildCellular(NoiseType noiseType, PerturbType perturbType, Frac
     case CellularReturnType::Distance2Div:
         CallBuildCellular<_SIMDType, _BuildType, CellularReturnType::Distance2Div>(cellularDistance, args...);
         break;
-//    case CellularReturnType::NoiseLookup:
+    case CellularReturnType::NoiseLookup:
 //        CallBuildCellularLookup<_SIMDType, _BuildType, CellularReturnType::NoiseLookup>(noiseType, perturbType, fractalType, cellularDistance, lookupNoiseType, args...);
-//        break;
+        break;
     case CellularReturnType::Distance2Cave:
         CallBuildCellular<_SIMDType, _BuildType, CellularReturnType::Distance2Cave>(cellularDistance, args...);
         break;
