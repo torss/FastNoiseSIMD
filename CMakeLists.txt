@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.1)
 
+string(COMPARE EQUAL "$ENV{TRAVIS}" "true" is_travis)
+string(COMPARE EQUAL "$ENV{APPVEYOR}" "True" is_appveyor)
+
+if(is_travis OR is_appveyor)
+    set(FN_BUILD_APP ON) #force building app on CI
+endif()
+
 project(FastNoise)
 
 set(FN_SIMD_SSE2 OFF)
@@ -191,35 +198,37 @@ if(FN_SIMD_AVX512)
     target_link_libraries(fastNoise_avx512 fastNoise)
 endif()
 
-add_executable(testApp testApp/main.cpp)
-
-set(fastNoise_libs
-    fastNoise
-)
-
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    set(fastNoise_libs ${fastNoise_libs}
-        Mincore.lib
+if(FN_BUILD_APP)
+    add_executable(fastNoiseApp testApp/main.cpp)
+    
+    set(fastNoise_libs
+        fastNoise
     )
-endif()
-target_link_libraries(testApp ${fastNoise_libs})
-target_compile_definitions(testApp PRIVATE "-DFN_USE_FILESYSTEM=${FN_USE_FILESYSTEM}")
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-    if(FN_USE_FILESYSTEM GREATER 0)
-        target_compile_options(testApp PUBLIC "-lstdc++fs")
+    
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        set(fastNoise_libs ${fastNoise_libs}
+            Mincore.lib
+        )
     endif()
-endif()
-
-
-if(FN_SIMD_SSE2)
-    add_dependencies(testApp fastNoise_sse2)
-endif()
-if(FN_SIMD_SSE41)
-    add_dependencies(testApp fastNoise_sse41)
-endif()
-if(FN_SIMD_AVX2)
-    add_dependencies(testApp fastNoise_avx2)
-endif()
-if(FN_SIMD_AVX512)
-    add_dependencies(testApp fastNoise_avx512)
+    target_link_libraries(fastNoiseApp ${fastNoise_libs})
+    target_compile_definitions(fastNoiseApp PRIVATE "-DFN_USE_FILESYSTEM=${FN_USE_FILESYSTEM}")
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+        if(FN_USE_FILESYSTEM GREATER 0)
+            target_compile_options(fastNoiseApp PUBLIC "-lstdc++fs")
+        endif()
+    endif()
+    
+    
+    if(FN_SIMD_SSE2)
+        add_dependencies(fastNoiseApp fastNoise_sse2)
+    endif()
+    if(FN_SIMD_SSE41)
+        add_dependencies(fastNoiseApp fastNoise_sse41)
+    endif()
+    if(FN_SIMD_AVX2)
+        add_dependencies(fastNoiseApp fastNoise_avx2)
+    endif()
+    if(FN_SIMD_AVX512)
+        add_dependencies(fastNoiseApp fastNoise_avx512)
+    endif()
 endif()

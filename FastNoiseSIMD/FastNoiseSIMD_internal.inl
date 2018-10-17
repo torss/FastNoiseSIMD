@@ -1027,16 +1027,16 @@ struct NoiseLookupSettings
 	typename SIMD<_SIMDType>::Float fractalBounding;
 };
 
-template<SIMDType _SIMDType, NoiseType _NoiseType, FractalType _FractalType>
-typename SIMD<_SIMDType>::Float FractalCelluarLookup(const typename SIMD<_SIMDType>::Int &seedV, const typename SIMD<_SIMDType>::Float &xF, const typename SIMD<_SIMDType>::Float &yF, const typename SIMD<_SIMDType>::Float &zF, const NoiseLookupSettings<_SIMDType>& noiseLookupSettings)
-{
-    typename SIMD<_SIMDType>::Float lacunarityV = noiseLookupSettings.fractalLacunarity;
-    typename SIMD<_SIMDType>::Float gainV = noiseLookupSettings.fractalGain;
-    typename SIMD<_SIMDType>::Float fractalBoundingV = noiseLookupSettings.fractalBounding;
-    int m_octaves = noiseLookupSettings.fractalOctaves;
-
-    return GetValue<_SIMDType, _NoiseType, _FractalType>::_(seedV, xF, yF, zF);
-}
+//template<SIMDType _SIMDType, NoiseType _NoiseType, FractalType _FractalType>
+//typename SIMD<_SIMDType>::Float FractalCelluarLookup(const typename SIMD<_SIMDType>::Int &seedV, const typename SIMD<_SIMDType>::Float &xF, const typename SIMD<_SIMDType>::Float &yF, const typename SIMD<_SIMDType>::Float &zF, const NoiseLookupSettings<_SIMDType>& noiseLookupSettings)
+//{
+//    typename SIMD<_SIMDType>::Float lacunarityV = noiseLookupSettings.fractalLacunarity;
+//    typename SIMD<_SIMDType>::Float gainV = noiseLookupSettings.fractalGain;
+//    typename SIMD<_SIMDType>::Float fractalBoundingV = noiseLookupSettings.fractalBounding;
+//    int m_octaves = noiseLookupSettings.fractalOctaves;
+//
+//    return GetValue<_SIMDType, _NoiseType, _FractalType>::_(seedV, xF, yF, zF);
+//}
 
 
 
@@ -1457,6 +1457,8 @@ static void CallBuild(NoiseType noiseType, _Types... args)
 {
     switch(noiseType)
     {
+    case NoiseType::None:
+        break;
     case NoiseType::Value:
     case NoiseType::ValueFractal:
         Build<_SIMDType, NoiseType::Value, _PerturbType, _FractalType, _CellularDistance, _CellularReturnType, _LookupNoiseType, _BuildType>::_(args...);
