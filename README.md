@@ -1,5 +1,7 @@
-![travis](https://img.shields.io/travis/caseymcc/FastNoiseSIMD.svg?logo=travis&style=flat-square&label=Linux%20OSX "Travis CI")
-![appveyor](https://img.shields.io/appveyor/ci/caseymcc/FastNoiseSIMD.svg?logo=appveyor&style=flat-square&label=Windows "AppVeyor CI")
+
+![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=flat-square "License")
+![travis](https://img.shields.io/travis/caseymcc/FastNoiseSIMD/master.svg?logo=travis&style=flat-square&label=Linux%20OSX "Travis CI")
+![appveyor](https://img.shields.io/appveyor/ci/caseymcc/FastNoiseSIMD/master.svg?logo=appveyor&style=flat-square&label=Windows "AppVeyor CI")
 
 
 # FastNoise SIMD (altered)
