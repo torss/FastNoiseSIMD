@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.1)
 
+string(COMPARE EQUAL "$ENV{TRAVIS}" "true" is_travis)
+string(COMPARE EQUAL "$ENV{APPVEYOR}" "True" is_appveyor)
+
+if(is_travis OR is_appveyor)
+    set(FN_BUILD_APP ON) #force building app on CI
+endif()
+
 project(FastNoise)
 
 set(FN_SIMD_SSE2 OFF)
@@ -68,6 +75,11 @@ else()
     endif()
 endif()
 
+message(STATUS "FN_SIMD_SSE2: ${FN_SIMD_SSE2}")
+message(STATUS "FN_SIMD_SSE41: ${FN_SIMD_SSE41}")
+message(STATUS "FN_SIMD_AVX2: ${FN_SIMD_AVX2}")
+message(STATUS "FN_SIMD_AVX512: ${FN_SIMD_AVX512}")
+
 set(fastNoise_sources
     FastNoiseSIMD/FastNoiseSIMD.cpp
     FastNoiseSIMD/FastNoiseSIMD_none.cpp
@@ -88,7 +100,9 @@ add_library(fastNoise SHARED
 )
 
 target_compile_definitions(fastNoise PRIVATE "-DFN_USE_FILESYSTEM=${FN_USE_FILESYSTEM}")
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(fastNoise PUBLIC "/bigobj")
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
     target_compile_options(fastNoise PUBLIC "-ldl")
     if(FN_USE_FILESYSTEM GREATER 0)
         target_compile_options(fastNoise PUBLIC "-lstdc++fs")
@@ -110,7 +124,9 @@ if(FN_SIMD_SSE2)
         ${fastNoise_sse2_headers}
     )
 
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        target_compile_options(fastNoise_sse2 PUBLIC "/bigobj")
+    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
         target_compile_options(fastNoise_sse2 PRIVATE "-msse2")
     endif()
     target_link_libraries(fastNoise_sse2 fastNoise)
@@ -130,7 +146,9 @@ if(FN_SIMD_SSE41)
         ${fastNoise_sse41_headers}
     )
 
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        target_compile_options(fastNoise_sse41 PUBLIC "/bigobj")
+    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
         target_compile_options(fastNoise_sse41 PRIVATE "-msse4.1")
     endif()
     target_link_libraries(fastNoise_sse41 fastNoise)
@@ -151,7 +169,7 @@ if(FN_SIMD_AVX2)
     )
 
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        target_compile_options(fastNoise_avx2 PRIVATE "/arch:AVX2")
+        target_compile_options(fastNoise_avx2 PRIVATE "/arch:AVX2" "/bigobj")
     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
         target_compile_options(fastNoise_avx2 PRIVATE "-mavx2" "-mfma")
     endif()
@@ -173,42 +191,44 @@ if(FN_SIMD_AVX512)
     )
 
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        target_compile_options(fastNoise_avx512 PRIVATE "/arch:AVX512")
+        target_compile_options(fastNoise_avx512 PRIVATE "/arch:AVX512" "/bigobj")
     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
         target_compile_options(fastNoise_avx512 PRIVATE "-mavx512f" "-mfma")
     endif()
     target_link_libraries(fastNoise_avx512 fastNoise)
 endif()
 
-add_executable(testApp testApp/main.cpp)
-
-set(fastNoise_libs
-    fastNoise
-)
-
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    set(fastNoise_libs ${fastNoise_libs}
-        Mincore.lib
+if(FN_BUILD_APP)
+    add_executable(fastNoiseApp testApp/main.cpp)
+    
+    set(fastNoise_libs
+        fastNoise
     )
-endif()
-target_link_libraries(testApp ${fastNoise_libs})
-target_compile_definitions(testApp PRIVATE "-DFN_USE_FILESYSTEM=${FN_USE_FILESYSTEM}")
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-    if(FN_USE_FILESYSTEM GREATER 0)
-        target_compile_options(testApp PUBLIC "-lstdc++fs")
+    
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        set(fastNoise_libs ${fastNoise_libs}
+            Mincore.lib
+        )
     endif()
-endif()
-
-
-if(FN_SIMD_SSE2)
-    add_dependencies(testApp fastNoise_sse2)
-endif()
-if(FN_SIMD_SSE41)
-    add_dependencies(testApp fastNoise_sse41)
-endif()
-if(FN_SIMD_AVX2)
-    add_dependencies(testApp fastNoise_avx2)
-endif()
-if(FN_SIMD_AVX512)
-    add_dependencies(testApp fastNoise_avx512)
+    target_link_libraries(fastNoiseApp ${fastNoise_libs})
+    target_compile_definitions(fastNoiseApp PRIVATE "-DFN_USE_FILESYSTEM=${FN_USE_FILESYSTEM}")
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+        if(FN_USE_FILESYSTEM GREATER 0)
+            target_compile_options(fastNoiseApp PUBLIC "-lstdc++fs")
+        endif()
+    endif()
+    
+    
+    if(FN_SIMD_SSE2)
+        add_dependencies(fastNoiseApp fastNoise_sse2)
+    endif()
+    if(FN_SIMD_SSE41)
+        add_dependencies(fastNoiseApp fastNoise_sse41)
+    endif()
+    if(FN_SIMD_AVX2)
+        add_dependencies(fastNoiseApp fastNoise_avx2)
+    endif()
+    if(FN_SIMD_AVX512)
+        add_dependencies(fastNoiseApp fastNoise_avx512)
+    endif()
 endif()
