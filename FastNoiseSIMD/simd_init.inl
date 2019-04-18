@@ -20,11 +20,11 @@ struct InitSIMDValuesBase
             return;
 
         uSIMD<typename SIMD<_SIMDType>::Float, float, SIMD<_SIMDType>::vectorSize()> incF;
-        uSIMD<typename SIMD<_SIMDType>::Int, int, SIMD<_SIMDType>::vectorSize()> incI;
-        for(int i=0; i<SIMD<_SIMDType>::vectorSize(); i++)
+        uSIMD<typename SIMD<_SIMDType>::Int, int32_t, SIMD<_SIMDType>::vectorSize()> incI;
+        for(size_t i=0; i<SIMD<_SIMDType>::vectorSize(); i++)
         {
             incF.a[i]=float(i);
-            incI.a[i]=i;
+            incI.a[i]=int32_t(i);
         }
         _Constants::numf_incremental=incF.m;
         _Constants::numi_incremental=incI.m;

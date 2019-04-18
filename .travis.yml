@@ -39,10 +39,10 @@ matrix:
         TOOLCHAIN=clang-cxx17
         PROJECT_DIR=./
 
-#    - os: linux
-#      env: >
-#        TOOLCHAIN=gcc-7-cxx17
-#        PROJECT_DIR=./
+    - os: linux
+      env: >
+        TOOLCHAIN=gcc-7-cxx17
+        PROJECT_DIR=./
 
 #    - os: linux
 #      env: >

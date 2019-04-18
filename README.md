@@ -1,7 +1,7 @@
 
-![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=flat-square "License")
-![travis](https://img.shields.io/travis/caseymcc/FastNoiseSIMD/master.svg?logo=travis&style=flat-square&label=Linux%20OSX "Travis CI")
-![appveyor](https://img.shields.io/appveyor/ci/caseymcc/FastNoiseSIMD/master.svg?logo=appveyor&style=flat-square&label=Windows "AppVeyor CI")
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=flat-square "License")](https://github.com/caseymcc/FastNoiseSIMD/blob/master/LICENSE)
+[![travis](https://img.shields.io/travis/caseymcc/FastNoiseSIMD/master.svg?logo=travis&style=flat-square&label=Linux%20OSX "Travis CI")](https://travis-ci.org/caseymcc/FastNoiseSIMD)
+[![appveyor](https://img.shields.io/appveyor/ci/caseymcc/FastNoiseSIMD/master.svg?logo=appveyor&style=flat-square&label=Windows "AppVeyor CI")](https://ci.appveyor.com/project/caseymcc/fastnoisesimd)
 
 
 # FastNoise SIMD (altered)
@@ -22,7 +22,7 @@ Runtime detection of highest supported instruction set ensures the fastest possi
 - Cubic Noise 3D
 - Multiple fractal options for all of the above
 - White Noise 3D
-- ~~Cellular Noise 3D~~ disabled for the moment
+- Cellular Noise 3D
 - Perturb input coordinates in 3D space
 - Integrated up-sampling
 - Easy to use 3D cave noise
@@ -37,10 +37,9 @@ Credit to [CubicNoise](https://github.com/jobtalle/CubicNoise) for the cubic noi
 - SSE2
 
 ## Tested Compilers
-- MSVC v120/v140
-- Intel 16.0
-- GCC 4.7 Linux
-- Clang MacOSX
+- MSVC v140/v150
+- GCC 7 Linux
+- Clang Linux/MacOSX
 
 ## Wiki
 [Docs](https://github.com/Auburns/FastNoiseSIMD/wiki)
@@ -62,6 +61,23 @@ Download links can be found in the [Releases Section](https://github.com/Auburns
 # Performance Comparisons
 Using default noise settings on FastNoise SIMD and matching those settings across the other libraries where possible.
 
+### Current:
+Timings below timings are to generate 100x 64x64x64 (~26.2M) points of noise on a single thread.
+
+- CPU: Intel Core i7-5820K @ 3.3Ghz
+- Compiler: Visual Studio 2017 x64
+
+| Noise Type  | AVX512 |  AVX2  | SSE4.1 |  SSE2  | FastNoise |
+|-------------|--------|--------|--------|--------|-----------|
+| White Noise |        |    9ms |   18ms |   21ms |      48ms |
+| Value       |        |  114ms |  243ms |  282ms |    2071ms |
+| Perlin      |        |  193ms |  416ms |  534ms |    2816ms |
+| Simplex     |        |  198ms |  372ms |  474ms |    2769ms |
+| Cellular    |        |  915ms | 2095ms | 2218ms |   16388ms |
+| Cubic       |        |  668ms | 1370ms | 2336ms |    5698ms |
+
+
+### Previous version timings: (pre template)
 Timings below are x1000 ns to generate 32x32x32 points of noise on a single thread.
 
 - CPU: Intel Xeon Skylake @ 2.0Ghz
@@ -77,6 +93,7 @@ Timings below are x1000 ns to generate 32x32x32 points of noise on a single thre
 | Cubic       | 615    | 952  | 1970   | 3516 | 2979      |          |
 
 Comparision of fractals and sampling performance [here](https://github.com/Auburns/FastNoiseSIMD/wiki/In-depth-SIMD-level).
+
 
 # Examples
 ### Cellular Noise

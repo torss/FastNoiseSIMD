@@ -1,3 +1,7 @@
+#ifdef fastNoise_avx512_EXPORTS
+#define fastNoise_EXPORTS
+#endif
+
 #include "FastNoiseSIMD.h"
 
 #include "simd_constants.inl"
@@ -79,10 +83,8 @@ struct GradCoord<SIMDType::AVX512>
     }
 };
 
-#ifdef FN_COMPILE_AVX512
-template class NoiseSIMD<SIMDType::AVX512>;
+template class FASTNOISE_EXPORT NoiseSIMD<SIMDType::AVX512>;
 //template struct Constants<typename SIMD<SIMDType::AVX512>::Float, typename SIMD<SIMDType::AVX512>::Int, SIMDType::AVX512>;
-#endif
 
 }//namespace details
 }//namespace FastNoiseSIMD

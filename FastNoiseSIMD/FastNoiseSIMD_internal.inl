@@ -51,7 +51,7 @@ namespace details
 {
 
 template<SIMDType _SIMDType>
-const bool NoiseSIMD<_SIMDType>::m_registered=FastNoise::NoiseSIMD::registerNoiseSimd(_SIMDType, NoiseSIMD<_SIMDType>::create, NoiseSIMD<_SIMDType>::AlignedSize, NoiseSIMD<_SIMDType>::GetEmptySet);
+const bool NoiseSIMD<_SIMDType>::m_registered=FastNoise::registerNoiseSimd(_SIMDType, NoiseSIMD<_SIMDType>::create, NoiseSIMD<_SIMDType>::AlignedSize, NoiseSIMD<_SIMDType>::GetEmptySet);
 
 template<SIMDType _SIMDType>
 struct simdAlloc
@@ -478,7 +478,7 @@ NoiseSIMD<_SIMDType>::NoiseSIMD(int seed)
     m_noiseDetails.fractalBounding = CalculateFractalBounding(m_noiseDetails.octaves, m_noiseDetails.gain);
 	m_perturbDetails.FractalBounding = CalculateFractalBounding(m_perturbDetails.Octaves, m_perturbDetails.Gain);
 
-	s_currentSIMDLevel = SIMD<_SIMDType>::level();
+    m_SIMDLevel= SIMD<_SIMDType>::level();
 }
 
 template<SIMDType _SIMDType>
@@ -518,7 +518,7 @@ void axisReset(typename SIMD<_SIMDType>::Int &x, typename SIMD<_SIMDType>::Int &
 {
     typedef Constants<typename SIMD<_SIMDType>::Float, typename SIMD<_SIMDType>::Int, _SIMDType> Constant;
 
-    for(int _i=(_zSize) * (_start); _i<SIMD<_SIMDType>::vectorSize(); _i+=(_zSize))
+    for(size_t _i=(_zSize) * (_start); _i<SIMD<_SIMDType>::vectorSize(); _i+=(_zSize))
     {
         typename SIMD<_SIMDType>::Mask _zReset=SIMD<_SIMDType>::greaterThan(z, zEndV);
 
@@ -800,7 +800,7 @@ typename SIMD<_SIMDType>::Float FBMSingle(const NoiseValues<_SIMDType> &noise, t
     typename SIMD<_SIMDType>::Int seedF=noise.seedV;
     typename SIMD<_SIMDType>::Float result=Single<_SIMDType, _NoiseType>::_(seedF, xF, yF, zF);
     typename SIMD<_SIMDType>::Float ampF=Constant::numf_1;
-    int octaveIndex=0;
+    size_t octaveIndex=0;
 
     while(++octaveIndex<noise.octaves)
     {
@@ -826,7 +826,7 @@ typename SIMD<_SIMDType>::Float BillowSingle(const NoiseValues<_SIMDType> &noise
     typename SIMD<_SIMDType>::Int seedF=noise.seedV;
     typename SIMD<_SIMDType>::Float result=SIMD<_SIMDType>::mulSub(SIMD<_SIMDType>::abs(Single<_SIMDType, _NoiseType>::_(seedF, xF, yF, zF)), Constant::numf_2, Constant::numf_1);
     typename SIMD<_SIMDType>::Float ampF=Constant::numf_1;
-    int octaveIndex=0;
+    size_t octaveIndex=0;
 
     while(++octaveIndex<noise.octaves)
     {
@@ -852,7 +852,7 @@ typename SIMD<_SIMDType>::Float RigidMultiSingle(const NoiseValues<_SIMDType> &n
     typename SIMD<_SIMDType>::Int seedF=noise.seedV;
     typename SIMD<_SIMDType>::Float result=SIMD<_SIMDType>::sub(Constant::numf_1, SIMD<_SIMDType>::abs(Single<_SIMDType, _NoiseType>::_(seedF, xF, yF, zF)));
     typename SIMD<_SIMDType>::Float ampF=Constant::numf_1;
-    int octaveIndex=0;
+    size_t octaveIndex=0;
 
     while(++octaveIndex < noise.octaves)
     {
@@ -1327,14 +1327,14 @@ struct Build
             Int zBase=SIMD<_SIMDType>::add(Constant::numi_incremental, SIMD<_SIMDType>::set(zStart));
             Int x=SIMD<_SIMDType>::set(xStart);
 
-            int index=0;
+            size_t index=0;
 
-            for(int ix=0; ix<xSize; ix++)
+            for(size_t ix=0; ix<xSize; ix++)
             {
                 Float xf=SIMD<_SIMDType>::mulf(SIMD<_SIMDType>::convert(x), noise.xFreqV);
                 Int y=yBase;
 
-                for(int iy=0; iy<ySize; iy++)
+                for(size_t iy=0; iy<ySize; iy++)
                 {
                     Float yf=SIMD<_SIMDType>::mulf(SIMD<_SIMDType>::convert(y), noise.yFreqV);
                     Int z=zBase;
@@ -1346,7 +1346,7 @@ struct Build
                     Float result=GetValue<_SIMDType, _NoiseType, _FractalType, _CellularDistance, _CellularReturnType, _LookupNoiseType>::_(noise, xF, yF, zF, args...);
                     SIMD<_SIMDType>::store(&noiseSet[index], result);
 
-                    int iz=SIMD<_SIMDType>::vectorSize();
+                    size_t iz=SIMD<_SIMDType>::vectorSize();
                     while(iz<zSize)
                     {
                         z=SIMD<_SIMDType>::add(z, Constant::numi_vectorSize);
@@ -1380,7 +1380,7 @@ struct Build
 
             axisReset<_SIMDType>(x, y, z, ySizeV, yEndV, zSizeV, zEndV, zSize, 1);
 
-            int index=0;
+            size_t index=0;
             int maxIndex=xSize * ySize * zSize;
 
             for(; index<maxIndex-SIMD<_SIMDType>::vectorSize(); index+=SIMD<_SIMDType>::vectorSize())
@@ -1417,8 +1417,8 @@ struct Build<_SIMDType, _NoiseType, _PerturbType, _FractalType, _CellularDistanc
     static void _(const NoiseValues<_SIMDType> &noise, const PerturbValues<_SIMDType> &perturb, float* noiseSet, VectorSet* vectorSet,
         const typename SIMD<_SIMDType>::Float &xOffsetV, const typename SIMD<_SIMDType>::Float &yOffsetV, const typename SIMD<_SIMDType>::Float &zOffsetV, _Types... args)
     {
-        int index=0;
-        int loopMax=vectorSet->size SIZE_MASK;
+        size_t index=0;
+        size_t loopMax=vectorSet->size SIZE_MASK;
 
         while(index<loopMax)
         {
@@ -1729,19 +1729,19 @@ void NoiseSIMD<_SIMDType>::FillWhiteNoiseSet(float* noiseSet, int xStart, int yS
 
         typename SIMD<_SIMDType>::Int zStep=SIMD<_SIMDType>::mul(Constant::numi_vectorSize, Constant::numi_zPrime);
 
-        int index=0;
+        size_t index=0;
 
-        for(int ix=0; ix < xSize; ix++)
+        for(size_t ix=0; ix < xSize; ix++)
         {
             typename SIMD<_SIMDType>::Int y=yBase;
 
-            for(int iy=0; iy < ySize; iy++)
+            for(size_t iy=0; iy < ySize; iy++)
             {
                 typename SIMD<_SIMDType>::Int z=zBase;
 
                 SIMD<_SIMDType>::store(&noiseSet[index], ValCoord<_SIMDType>(seedV, x, y, z));
 
-                int iz=SIMD<_SIMDType>::vectorSize();
+                size_t iz=SIMD<_SIMDType>::vectorSize();
                 while(iz < zSize)
                 {
                     z=SIMD<_SIMDType>::add(z, zStep);
@@ -1770,7 +1770,7 @@ void NoiseSIMD<_SIMDType>::FillWhiteNoiseSet(float* noiseSet, int xStart, int yS
 
         axisReset<_SIMDType>(x, y, z, ySizeV, yEndV, zSizeV, zEndV, zSize, 1);
 
-        int index=0;
+        size_t index=0;
         int maxIndex=xSize * ySize * zSize;
 
         for(; index < maxIndex-SIMD<_SIMDType>::vectorSize(); index+=SIMD<_SIMDType>::vectorSize())

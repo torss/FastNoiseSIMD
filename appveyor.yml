@@ -24,10 +24,6 @@ environment:
       PROJECT_DIR: .\
       APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
 
-    - TOOLCHAIN: "vs-14-2015-sdk-8-1"
-      PROJECT_DIR: .\
-      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-
 #    - TOOLCHAIN: "mingw-cxx17"
 #      PROJECT_DIR: .\
 #      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
