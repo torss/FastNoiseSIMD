@@ -21,6 +21,10 @@ namespace fs=std::experimental::filesystem;
 #include <iostream>
 #include <cassert>
 #include <cstring>
+#include <cmath>
+
+#include <chrono>
+namespace chrono=std::chrono;
 
 struct NoiseInfo
 {
@@ -44,15 +48,44 @@ std::vector<NoiseInfo> Noises=
     {"CubicFractal", FastNoise::NoiseType::CubicFractal}
 };
 
-std::vector<std::string> SIMDNames=
+struct SIMDInfo
 {
-    {"NONE"},
-    {"NEON"},
-    {"SSE2"},
-    {"SSE41"},
-    {"AVX2"},
-    {"AVX512"}
+    SIMDInfo(std::string name, FastNoise::SIMDType type):name(name), type(type) {}
+
+    std::string name;
+    FastNoise::SIMDType type;
 };
+
+std::vector<SIMDInfo> SIMDNames=
+{
+    {"NONE", FastNoise::SIMDType::None},
+    {"NEON", FastNoise::SIMDType::Neon},
+    {"SSE2", FastNoise::SIMDType::SSE2},
+    {"SSE41", FastNoise::SIMDType::SSE4_1},
+    {"AVX2", FastNoise::SIMDType::AVX2},
+    {"AVX512", FastNoise::SIMDType::AVX512}
+};
+
+std::string getSimdName(FastNoise::SIMDType type)
+{
+    for(SIMDInfo &info:SIMDNames)
+        if(info.type==type)
+            return info.name;
+    return std::string("Unknown");
+}
+
+void loadNoise(std::string &fileName, float *data, size_t x, size_t y, size_t z)
+{
+    FILE *file=fopen(fileName.c_str(), "rb");
+
+    if(!file)
+        return;
+
+    size_t size=x*y*z;
+
+    fread(data, sizeof(float), size, file);
+    fclose(file);
+}
 
 void saveNoise(std::string &fileName, float *data, size_t x, size_t y, size_t z)
 {
@@ -67,16 +100,37 @@ void saveNoise(std::string &fileName, float *data, size_t x, size_t y, size_t z)
     fclose(file);
 }
 
-void generate(int highestLevel=-1)
+bool match(float *data0, float *data1, size_t x, size_t y, size_t z, double &error)
+{
+    error=0.0;
+    size_t size=x*y*z;
+
+    float delta;
+
+    for(size_t i=0; i<size; i++)
+    {
+        delta=std::abs(data0[i]-data1[i]);
+
+        if(delta>std::numeric_limits<float>::epsilon())
+            error+=delta;
+    }
+
+    if(error==0.0)
+        return true;
+    return false;
+}
+
+int xSize=64;
+int ySize=64;
+int zSize=64;
+
+void generate(size_t highestLevel=0)
 {
 #if FN_USE_FILESYSTEM == 0
     assert(false);
 #else
-    int maxLevel=FastNoise::NoiseSIMD::GetSIMDLevel();
-    int xSize=64;
-    int ySize=64;
-    int zSize=64;
-
+    size_t maxLevel=FastNoise::GetFastestSIMD();
+ 
     if(highestLevel>=0)
         maxLevel=std::min(maxLevel, highestLevel);
 
@@ -86,84 +140,147 @@ void generate(int highestLevel=-1)
         fs::create_directory(dataDir);
 
     std::string fileName;
-    //skip neon
-    for(int i=maxLevel; i>=0; --i)
+    
+    for(size_t i=maxLevel+1; i>0; --i)
     {
-        std::cout<<"SIMD: "<<SIMDNames[i]<<" --------------------------------------------------------\n";
+        size_t simdLevel=(size_t)i-1;
 
-        FastNoise::NoiseSIMD::SetSIMDLevel((FastNoise::SIMDType)i);
-        float* noiseSet=FastNoise::NoiseSIMD::GetEmptySet(xSize, ySize, zSize);
-        FastNoise::NoiseSIMD *noise=FastNoise::NoiseSIMD::New();
+        //skip neon
+        if(simdLevel==(size_t)FastNoise::SIMDType::Neon)
+            continue;
+
+        std::cout<<"SIMD: "<<getSimdName((FastNoise::SIMDType)simdLevel)<<" --------------------------------------------------------\n";
+
+        auto noise=FastNoise::CreateNoise(1337, simdLevel);
+
+        if(noise->GetSIMDLevel()!=simdLevel)
+        {
+            std::cout<<"Failed to load: "<<getSimdName((FastNoise::SIMDType)simdLevel)<<"\n";
+            continue;
+        }
+        
+        auto noiseSet=noise->GetEmptySet(xSize, ySize, zSize);
 
         for(auto &info:Noises)
         {
             std::cout<<"    "<<info.name;
 
             noise->SetNoiseType(info.type);
-            noise->FillSet(noiseSet, 0, 0, 0, xSize, ySize, zSize);
+            noise->FillSet(noiseSet.get(), 0, 0, 0, xSize, ySize, zSize);
 
-            fileName=dataDir.string()+"/"+info.name+"_"+SIMDNames[i]+".ns";
-            saveNoise(fileName, noiseSet, xSize, ySize, zSize);
+            fileName=dataDir.string()+"/"+info.name+"_"+getSimdName((FastNoise::SIMDType)simdLevel)+".ns";
+            saveNoise(fileName, noiseSet.get(), xSize, ySize, zSize);
 
             std::cout<<"  complete\n";
         }
-        delete noise;
     }
 #endif
 }
 
+void checkGenerated()
+{
+#if FN_USE_FILESYSTEM == 0
+    assert(false);
+#else
+    fs::path dataDir("./data");
+
+    if(!fs::exists(dataDir))
+    {
+        std::cout<<"No data folder found\n";
+        return;
+    }
+
+    for(NoiseInfo &noiseInfo:Noises)
+    {
+        std::vector<FastNoise::FloatBuffer> noiseSets(SIMDNames.size());
+        size_t index=0;
+
+        for(SIMDInfo &simdInfo:SIMDNames)
+        {
+            std::string fileName=dataDir.string()+"/"+noiseInfo.name+"_"+simdInfo.name+".ns";
+            fs::path filePath(fileName);
+
+            if(!fs::exists(filePath))
+            {
+                index++;
+                continue;
+            }
+
+            noiseSets[index]=FastNoise::GetEmptySet(xSize, ySize, zSize, (size_t)simdInfo.type);
+            loadNoise(fileName, noiseSets[index].get(), xSize, ySize, zSize);
+
+            index++;
+        }
+
+        std::cout<<"Noise: "<<noiseInfo.name<<" --------------------------------------------------------\n";
+
+        for(size_t i=0; i<SIMDNames.size(); i++)
+        {
+            if(!noiseSets[i])
+                continue;
+
+            for(size_t j=i+1; j<SIMDNames.size(); j++)
+            {
+                if(!noiseSets[j])
+                    continue;
+
+                double error;
+
+                if(match(noiseSets[i].get(), noiseSets[j].get(), xSize, ySize, zSize, error))
+                    std::cout<<"  "<<SIMDNames[i].name<<" <--> "<<SIMDNames[j].name<<": matched\n";
+                else
+                    std::cout<<"  "<<SIMDNames[i].name<<" <--> "<<SIMDNames[j].name<<": failed err "<<error<<"\n";
+            }
+        }
+    }
+#endif
+}
+
+
 void testPerformance()
 {
-    int maxLevel=FastNoise::NoiseSIMD::GetSIMDLevel();
-    int xSize=64;
-    int ySize=64;
-    int zSize=64;
-
-    //    maxLevel=2;
-    
-    std::vector<float *> noiseSets(6, nullptr);
+    size_t maxLevel=FastNoise::GetFastestSIMD();
+    std::vector<FastNoise::FloatBuffer> noiseSets(FastNoise::SIMDTypeCount);
 
     for(auto &info:Noises)
     {
         std::cout<<info.name<<" --------------------------------------------------------\n";
 
-        for(int i=maxLevel; i>=0; --i)
+        for(size_t i=maxLevel+1; i>0; --i)
         {
-            if(!FastNoise::NoiseSIMD::SetSIMDLevel((FastNoise::SIMDType)i))
+            size_t simdLevel=(size_t)i-1;
+
+            //skip neon
+            if(simdLevel==(size_t)FastNoise::SIMDType::Neon)
                 continue;
 
-            if(!noiseSets[i])
-                noiseSets[i]=FastNoise::NoiseSIMD::GetEmptySet(xSize, ySize, zSize);
+            auto noise=FastNoise::CreateNoise(1337, simdLevel);
 
-            float *noiseSet=noiseSets[i];
-            FastNoise::NoiseSIMD *noise=FastNoise::NoiseSIMD::New();
-            
+            if(noise->GetSIMDLevel()!=simdLevel)
+            {
+                std::cout<<"Failed to load: "<<getSimdName((FastNoise::SIMDType)simdLevel)<<"\n";
+                continue;
+            }
+
             noise->SetNoiseType(info.type);
 
-#ifdef _MSC_VER
-            DWORD elapsed;
-            DWORD start=GetTickCount();
+            if(!noiseSets[simdLevel])
+                noiseSets[simdLevel]=FastNoise::GetEmptySet(xSize, ySize, zSize, simdLevel);
 
-//            ULONGLONG start;
-//            ULONGLONG elapsed;
-//
-//            QueryInterruptTime(&start);
-#endif
+            float *noiseSet=noiseSets[simdLevel].get();
 
-            for(size_t j=0; j<100; ++j)
+            chrono::high_resolution_clock::time_point startTime;
+            chrono::high_resolution_clock::time_point endTime;
+
+            startTime=chrono::high_resolution_clock::now();
+
+            for(int j=0; j<100; ++j)
                 noise->FillSet(noiseSet, j*xSize, j*ySize, j*zSize, xSize, ySize, zSize);
 
+            endTime=chrono::high_resolution_clock::now();
+            double elapsed=chrono::duration_cast<chrono::milliseconds>(endTime-startTime).count();
 
-#ifdef _MSC_VER
-            elapsed=GetTickCount();
-            elapsed=elapsed-start;
-
-//            QueryInterruptTime(&elapsed);
-//            elapsed=(elapsed-start)/10000;
-
-            std::cout<<"    "<<SIMDNames[i]<<" "<<elapsed<<"ms\n";
-#endif
-            delete noise;
+            std::cout<<"    "<<getSimdName((FastNoise::SIMDType)simdLevel)<<" "<<elapsed<<"ms\n";
         }
     }
 
@@ -173,17 +290,20 @@ void testPerformance()
 
 int main(int argc, char ** argv)
 {
-    FastNoise::NoiseSIMD::loadSimd("./");
+    FastNoise::loadSimd("./");
     
     int maxLevel=-1;
     bool getMaxLevel=false;
     bool runGenerate=false;
+    bool runCheckGenerated=false;
     bool runPerformance=false;
 
-    for(size_t i=1; i<argc; ++i)
+    for(int i=1; i<argc; ++i)
     {
         if(strcmp(argv[i], "-g")==0)
             runGenerate=true;
+        if(strcmp(argv[i], "-c")==0)
+            runCheckGenerated=true;
         else if(strcmp(argv[i], "-p")==0)
             runPerformance=true;
         else if(strcmp(argv[i], "-m")==0)
@@ -192,12 +312,14 @@ int main(int argc, char ** argv)
             maxLevel=atoi(argv[i]);
         else
         {
-            getMaxLevel=false;;
+            getMaxLevel=false;
         }
     }
 
     if(runGenerate)
         generate(maxLevel);
+    if(runCheckGenerated)
+        checkGenerated();
     if(runPerformance)
         testPerformance();
     return 0;

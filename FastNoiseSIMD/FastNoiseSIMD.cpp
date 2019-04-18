@@ -25,6 +25,7 @@
 // The developer's email is jorzixdan.me2@gzixmail.com (for great email, take
 // off every 'zix'.)
 //
+
 #include "FastNoiseSIMD.h"
 #include <assert.h>
 #include <stdlib.h>
@@ -39,38 +40,6 @@
 #else
 #include <dlfcn.h>
 #endif
-
-//#include "FastNoiseSIMD_internal.h"
-
-//#ifdef FN_COMPILE_NO_SIMD_FALLBACK
-//#define SIMD_LEVEL_H FN_NO_SIMD_FALLBACK
-//#include "FastNoiseSIMD_internal.h"
-//#endif
-//
-//#ifdef FN_COMPILE_SSE2
-//#define SIMD_LEVEL_H FN_SSE2
-//#include "FastNoiseSIMD_internal.h"
-//#endif
-//
-//#ifdef FN_COMPILE_SSE41
-//#define SIMD_LEVEL_H FN_SSE41
-//#include "FastNoiseSIMD_internal.h"
-//#endif
-//
-//#ifdef FN_COMPILE_AVX2
-//#define SIMD_LEVEL_H FN_AVX2
-//#include "FastNoiseSIMD_internal.h"
-//#endif
-//
-//#ifdef FN_COMPILE_AVX512
-//#define SIMD_LEVEL_H FN_AVX512
-//#include "FastNoiseSIMD_internal.h"
-//#endif
-//
-//#ifdef FN_COMPILE_NEON
-//#define SIMD_LEVEL_H FN_NEON
-//#include "FastNoiseSIMD_internal.h"
-//#endif
 
 // CPUid
 #ifdef _WIN32
@@ -103,16 +72,13 @@ namespace fs=std::experimental::filesystem;
 
 namespace FastNoise
 {
+static std::vector<NoiseFuncs> s_noiseSimds(SIMDTypeCount);
 
-size_t NoiseSIMD::s_currentSIMDLevel=std::numeric_limits<size_t>::max();
-std::vector<NoiseFuncs> NoiseSIMD::m_noiseSimds(6);
-
-
-bool NoiseSIMD::registerNoiseSimd(SIMDType type, NewNoiseSimdFunc createFunc, AlignedSizeFunc alignedSizeFunc, GetEmptySetFunc getEmptySetFunc)
+bool registerNoiseSimd(SIMDType type, NewNoiseSimdFunc createFunc, AlignedSizeFunc alignedSizeFunc, GetEmptySetFunc getEmptySetFunc)
 {
-    m_noiseSimds[(size_t)type].createFunc=createFunc;
-    m_noiseSimds[(size_t)type].alignedSizeFunc=alignedSizeFunc;
-    m_noiseSimds[(size_t)type].getEmptySetFunc=getEmptySetFunc;
+    s_noiseSimds[(size_t)type].createFunc=createFunc;
+    s_noiseSimds[(size_t)type].alignedSizeFunc=alignedSizeFunc;
+    s_noiseSimds[(size_t)type].getEmptySetFunc=getEmptySetFunc;
 
     return true;
 }
@@ -225,7 +191,7 @@ size_t _GetFastestSIMD()
     return (size_t)SIMDType::AVX512;
 }
 
-size_t NoiseSIMD::GetFastestSIMD()
+size_t GetFastestSIMD()
 {
     //find highest supported simd
     size_t simd=_GetFastestSIMD();
@@ -233,7 +199,7 @@ size_t NoiseSIMD::GetFastestSIMD()
     //see which simd levels are loaded
     while(simd>0)
     {
-        if(m_noiseSimds[simd].createFunc)
+        if(s_noiseSimds[simd].createFunc)
             return simd;
 
         simd--;
@@ -243,50 +209,51 @@ size_t NoiseSIMD::GetFastestSIMD()
 }
 #endif
 
-NoiseSIMD* NoiseSIMD::New(int seed)
+size_t AlignedSize(size_t size, size_t simdLevel)
 {
-    GetSIMDLevel();
+    if(simdLevel>=s_noiseSimds.size())
+        return 0;
 
-    if(m_noiseSimds[s_currentSIMDLevel].createFunc)
-        return m_noiseSimds[s_currentSIMDLevel].createFunc(seed);
+    if(!s_noiseSimds[simdLevel].alignedSizeFunc)
+        return 0;
 
-    return m_noiseSimds[(size_t)SIMDType::None].createFunc(seed);
+    return s_noiseSimds[simdLevel].alignedSizeFunc(size);
 }
 
-size_t NoiseSIMD::AlignedSize(size_t size)
+
+
+namespace details
 {
-    GetSIMDLevel();
 
-    if(m_noiseSimds[s_currentSIMDLevel].alignedSizeFunc)
-        return m_noiseSimds[s_currentSIMDLevel].alignedSizeFunc(size);
+NoiseSIMD *CreateNoise(int seed, size_t simdLevel)
+{
+    if(simdLevel>=s_noiseSimds.size())
+    {
+        simdLevel=GetFastestSIMD();
+    }
 
-    return m_noiseSimds[(size_t)SIMDType::None].alignedSizeFunc(size);
+    if(s_noiseSimds[simdLevel].createFunc)
+        return s_noiseSimds[simdLevel].createFunc(seed);
+
+    return s_noiseSimds[(size_t)SIMDType::None].createFunc(seed);
 }
 
-float* NoiseSIMD::GetEmptySet(size_t size)
+float *GetEmptySet(size_t size, size_t simdLevel)
 {
-    GetSIMDLevel();
+    if(simdLevel>=s_noiseSimds.size())
+        return nullptr;
 
-    if(m_noiseSimds[s_currentSIMDLevel].getEmptySetFunc)
-        return m_noiseSimds[s_currentSIMDLevel].getEmptySetFunc(size);
+    if(!s_noiseSimds[simdLevel].getEmptySetFunc)
+        return nullptr;
 
-    return m_noiseSimds[(size_t)SIMDType::None].getEmptySetFunc(size);
+    return s_noiseSimds[simdLevel].getEmptySetFunc(size);
 }
 
-size_t NoiseSIMD::GetSIMDLevel()
-{
-    if(s_currentSIMDLevel == std::numeric_limits<size_t>::max())
-        s_currentSIMDLevel=GetFastestSIMD();
-
-    return s_currentSIMDLevel;
-}
-
-void NoiseSIMD::FreeNoiseSet(float* floatArray)
+void FreeNoiseSet(float *floatArray, size_t level)
 {
 #ifdef FN_ALIGNED_SETS
-    GetSIMDLevel();
 
-    if(s_currentSIMDLevel!=(size_t)SIMDType::None)
+    if(level!=(size_t)SIMDType::None)
 #ifdef _WIN32
         _aligned_free(floatArray);
 #else
@@ -297,7 +264,9 @@ void NoiseSIMD::FreeNoiseSet(float* floatArray)
         delete[] floatArray;
 }
 
-bool NoiseSIMD::loadSimd(std::string libPath)
+}//namespace details
+
+bool loadSimd(std::string libPath)
 {
 #if FN_USE_FILESYSTEM == 0
     assert(false);
@@ -331,8 +300,6 @@ bool NoiseSIMD::loadSimd(std::string libPath)
 
             try
             { instance=LoadLibrary(filePath.string().c_str()); } //Plugins should autoregister
-            catch(std::exception &except)
-            { instance=NULL; }
             catch(...)
             { instance=NULL; }
 
@@ -384,14 +351,7 @@ bool NoiseSIMD::loadSimd(std::string libPath)
 #endif
 }
 
-VectorSet* NoiseSIMD::GetVectorSet(int xSize, int ySize, int zSize)
-{
-    VectorSet* vectorSet=new VectorSet();
-    FillVectorSet(vectorSet, xSize, ySize, zSize);
-    return vectorSet;
-}
-
-void NoiseSIMD::FillVectorSet(VectorSet* vectorSet, int xSize, int ySize, int zSize)
+void FillVectorSet(VectorSet* vectorSet, int xSize, int ySize, int zSize)
 {
     assert(vectorSet);
 
@@ -415,14 +375,7 @@ void NoiseSIMD::FillVectorSet(VectorSet* vectorSet, int xSize, int ySize, int zS
     }
 }
 
-VectorSet* NoiseSIMD::GetSamplingVectorSet(int sampleScale, int xSize, int ySize, int zSize)
-{
-    VectorSet* vectorSet=new VectorSet();
-    FillSamplingVectorSet(vectorSet, sampleScale, xSize, ySize, zSize);
-    return vectorSet;
-}
-
-void NoiseSIMD::FillSamplingVectorSet(VectorSet* vectorSet, int sampleScale, int xSize, int ySize, int zSize)
+void FillSamplingVectorSet(VectorSet* vectorSet, int sampleScale, int xSize, int ySize, int zSize)
 {
     assert(vectorSet);
 
@@ -476,15 +429,6 @@ void NoiseSIMD::FillSamplingVectorSet(VectorSet* vectorSet, int sampleScale, int
     }
 }
 
-float* NoiseSIMD::GetNoiseSet(int xStart, int yStart, int zStart, int xSize, int ySize, int zSize, float scaleModifier)
-{
-    float* noiseSet=GetEmptySet(xSize, ySize, zSize);
-
-    FillSet(noiseSet, xStart, yStart, zStart, xSize, ySize, zSize, scaleModifier);
-
-    return noiseSet;
-}
-
 void NoiseSIMD::FillSet(float* noiseSet, int xStart, int yStart, int zStart, int xSize, int ySize, int zSize, float scaleModifier)
 {
     assert(false);
@@ -495,7 +439,7 @@ void NoiseSIMD::FillSet(float* noiseSet, VectorSet* vectorSet, float xOffset, fl
     assert(false);
 }
 
-float NoiseSIMD::CalculateFractalBounding(int octaves, float gain)
+float CalculateFractalBounding(int octaves, float gain)
 {
     float amp=gain;
     float ampFractal=1.0f;
@@ -514,27 +458,6 @@ void NoiseSIMD::SetCellularDistance2Indicies(int cellularDistanceIndex0, int cel
 
     m_noiseDetails.cellularDistanceIndex0=std::min(std::max(m_noiseDetails.cellularDistanceIndex0, 0), FN_CELLULAR_INDEX_MAX);
     m_noiseDetails.cellularDistanceIndex1=std::min(std::max(m_noiseDetails.cellularDistanceIndex1, 0), FN_CELLULAR_INDEX_MAX);
-}
-
-void VectorSet::Free()
-{
-    size=-1;
-    NoiseSIMD::FreeNoiseSet(xSet);
-    xSet=nullptr;
-    ySet=nullptr;
-    zSet=nullptr;
-}
-
-void VectorSet::SetSize(size_t _size)
-{
-    Free();
-    size=_size;
-
-    size_t alignedSize=NoiseSIMD::AlignedSize(size);
-
-    xSet=NoiseSIMD::GetEmptySet(alignedSize*3);
-    ySet=xSet+alignedSize;
-    zSet=ySet+alignedSize;
 }
 
 }//namespace FastNoise

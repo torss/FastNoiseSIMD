@@ -1,3 +1,6 @@
+#ifdef fastNoise_sse41_EXPORTS
+#define fastNoise_EXPORTS
+#endif
 #include "FastNoiseSIMD.h"
 
 #include "simd_constants.inl"
@@ -14,10 +17,8 @@ namespace FastNoise
 namespace details
 {
 
-#ifdef FN_COMPILE_SSE41
-template class NoiseSIMD<SIMDType::SSE4_1>;
+template class FASTNOISE_EXPORT NoiseSIMD<SIMDType::SSE4_1>;
 //template struct Constants<typename SIMD<SIMDType::SSE4_1>::Float, typename SIMD<SIMDType::SSE4_1>::Int, SIMDType::SSE4_1>;
-#endif
 
 }//namespace details
 }//namespace FastNoiseSIMD

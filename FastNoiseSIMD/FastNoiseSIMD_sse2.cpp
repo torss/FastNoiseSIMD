@@ -1,3 +1,6 @@
+#ifdef fastNoise_sse2_EXPORTS
+#define fastNoise_EXPORTS
+#endif
 #include "FastNoiseSIMD.h"
 
 #include "simd_constants.inl"
@@ -13,11 +16,7 @@ namespace FastNoise
 namespace details
 {
 
-#ifdef FN_COMPILE_SSE2
-
-template class NoiseSIMD<SIMDType::SSE2>;
-
-#endif
+template class FASTNOISE_EXPORT NoiseSIMD<SIMDType::SSE2>;
 
 }//namespace details
 }//namespace FastNoiseSIMD

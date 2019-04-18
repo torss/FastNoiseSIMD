@@ -60,7 +60,26 @@ struct SIMD<SIMDType::AVX512>
     static Float andNot(Float a, Float b) { return _mm512_andnot_ps(a, b); }
     static Float _xor(Float a, Float b) { return _mm512_xor_ps(a, b); }
 
-    static Float floor(Float a){ return _mm512_floor_ps(a);}
+    static Float floor(Float a) 
+    { 
+#ifdef _MSC_VER //MSVC doesnt seem to have the floor function yet
+#if _MSC_VER < 1920 // here is hoping VS2019 has it
+        __m256 a0=_mm512_castps512_ps256(a);
+        __m256 a1=_mm512_extractf32x8_ps(a, 1);
+
+        a0=_mm256_floor_ps(a0);
+        a1=_mm256_floor_ps(a1);
+
+        Float b=_mm512_castps256_ps512(a0);
+        b=_mm512_insertf32x8(b, a1, 1);
+        return b;
+#else
+        return _mm512_floor_ps(a);
+#endif
+#else
+        return _mm512_floor_ps(a);
+#endif
+    }
     static Float abs(Float a) { return _mm512_abs_ps(a); }
     static Float blend(Float a, Float b, Mask mask) { return _mm512_mask_blend_ps(mask, a, b); }
 

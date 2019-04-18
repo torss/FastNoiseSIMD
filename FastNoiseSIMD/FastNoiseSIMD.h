@@ -33,8 +33,10 @@
 
 #include "FastNoiseSIMD_export.h"
 
+#include <memory>
 #include <vector>
 #include <string>
+#include <functional>
 
 namespace FastNoise
 {
@@ -114,20 +116,19 @@ AMD Piledriver - 2012
 AVX-512F
 Intel Skylake-X - Q2 2017
 */
-struct VectorSet;
-
 enum class NoiseType { None, Value, ValueFractal, Perlin, PerlinFractal, Simplex, SimplexFractal, WhiteNoise, Cellular, Cubic, CubicFractal };
 enum class FractalType { None, FBM, Billow, RigidMulti };
 enum class PerturbType { None, Gradient, GradientFractal, Normalise, Gradient_Normalise, GradientFractal_Normalise };
 enum class CellularDistance { None, Euclidean, Manhattan, Natural };
 enum class CellularReturnType { None, Value, Distance, Distance2, Distance2Add, Distance2Sub, Distance2Mul, Distance2Div, NoiseLookup, Distance2Cave };
 
+constexpr size_t SIMDTypeCount=6;
 enum class SIMDType { None, Neon, SSE2, SSE4_1, AVX2, AVX512 };
 
 enum class NoiseClass {Single, Fractal, Cellular};
 enum class BuildType {Default, Map, Vector };
 
-struct NoiseDetails
+struct FASTNOISE_EXPORT NoiseDetails
 {
     NoiseDetails():
         seed(1337),
@@ -165,7 +166,7 @@ struct NoiseDetails
     float  cellularJitter;
 };
 
-struct PerturbDetails
+struct FASTNOISE_EXPORT PerturbDetails
 {
     PerturbDetails():
         Amp(1.0f),
@@ -197,7 +198,7 @@ typedef NoiseSIMD *(*NewNoiseSimdFunc)(int);
 typedef size_t(*AlignedSizeFunc)(size_t);
 typedef float *(*GetEmptySetFunc)(size_t);
 
-struct NoiseFuncs
+struct FASTNOISE_EXPORT NoiseFuncs
 {
     NoiseFuncs():createFunc(nullptr), alignedSizeFunc(nullptr), getEmptySetFunc(nullptr) {}
 
@@ -206,62 +207,158 @@ struct NoiseFuncs
     GetEmptySetFunc getEmptySetFunc;
 };
 
+
+// Loads all available simd libraries from directory
+FASTNOISE_EXPORT bool loadSimd(std::string directory);
+
+
+namespace details
+{
+//Creates Noise class at SIMD level
+FASTNOISE_EXPORT NoiseSIMD *CreateNoise(int seed=1337, size_t simdLevel=-1);
+
+// Free a noise set from memory
+FASTNOISE_EXPORT void FreeNoiseSet(float *noiseSet, size_t simdLevel);
+
+// Create an empty (aligned) noise set for use with FillNoiseSet()
+FASTNOISE_EXPORT float *GetEmptySet(size_t size, size_t simdLevel);
+
+// Create an empty (aligned) noise set for use with FillNoiseSet()
+inline float *GetEmptySet(size_t xSize, size_t ySize, size_t zSize, size_t simdLevel) { return GetEmptySet(xSize*ySize*zSize, simdLevel); }
+
+}//namespace details
+
+// Returns highest detected level of CPU support
+// 5: ARM NEON
+// 4: AVX-512F
+// 3: AVX2 & FMA3
+// 2: SSE4.1
+// 1: SSE2
+// 0: Fallback, no SIMD support
+//size_t GetSIMDLevel(void);
+FASTNOISE_EXPORT size_t GetFastestSIMD();
+
+// Creates new NoiseSIMD for the highest supported instuction set of the CPU 
+// 5: ARM NEON
+// 4: AVX-512F
+// 3: AVX2 & FMA3
+// 2: SSE4.1
+// 1: SSE2
+// 0: Fallback, no SIMD support
+// -1: Auto-detect fastest supported (Default)
+// Caution: Setting this manually can cause crashes on CPUs that do not support that level
+// Caution: Changing this after creating NoiseSIMD objects has undefined behaviour
+inline std::unique_ptr<NoiseSIMD> CreateNoise(int seed=1337, size_t simdLevel=std::numeric_limits<size_t>::max())
+{
+    return std::unique_ptr<NoiseSIMD>(details::CreateNoise(seed, simdLevel));
+}
+
+struct SetDeleter
+{
+    SetDeleter():level(std::numeric_limits<size_t>::max()) {}
+    SetDeleter(size_t level):level(level) {}
+
+    void operator()(float *ptr) const { if(level>=SIMDTypeCount) return;  details::FreeNoiseSet(ptr, level); }
+    size_t level;
+};
+typedef std::unique_ptr<float, SetDeleter> FloatBuffer;
+// Create an empty (aligned) noise set for use with FillNoiseSet()
+inline FloatBuffer GetEmptySet(size_t size, size_t simdLevel)
+{
+    float *ptr=details::GetEmptySet(size, simdLevel);
+
+    return FloatBuffer{ptr, SetDeleter(simdLevel)};
+}
+
+// Create an empty (aligned) noise set for use with FillNoiseSet()
+inline FloatBuffer GetEmptySet(size_t xSize, size_t ySize, size_t zSize, size_t simdLevel)
+{ 
+    return GetEmptySet(xSize*ySize*zSize, simdLevel); 
+}
+
+// Rounds the size up to the nearest aligned size for the current SIMD level
+FASTNOISE_EXPORT size_t AlignedSize(size_t size, size_t simdLevel);
+
+struct VectorSet
+{
+public:
+    size_t size=-1;
+    size_t simdLevel;
+    FloatBuffer buffer;
+    float *xSet=nullptr;
+    float *ySet=nullptr;
+    float *zSet=nullptr;
+
+    // Only used for sampled vector sets
+    int sampleScale=0;
+    int sampleSizeX=-1;
+    int sampleSizeY=-1;
+    int sampleSizeZ=-1;
+
+    VectorSet(size_t simdLevel):simdLevel(simdLevel), buffer(nullptr, SetDeleter(simdLevel)) {}
+
+    VectorSet(size_t simdLevel, size_t _size):simdLevel(simdLevel), buffer(nullptr, SetDeleter(simdLevel)) { SetSize(_size); }
+
+    ~VectorSet() {}
+
+    void Free()
+    {
+        size=-1;
+        buffer.reset();
+        xSet=nullptr;
+        ySet=nullptr;
+        zSet=nullptr;
+    }
+
+    void SetSize(size_t _size)
+    {
+        Free();
+        size=_size;
+
+        size_t alignedSize=AlignedSize(size, simdLevel);
+
+        buffer=GetEmptySet(alignedSize*3, simdLevel);
+        xSet=buffer.get();
+        ySet=xSet+alignedSize;
+        zSet=ySet+alignedSize;
+    }
+
+};
+
+//Fills VectorSet with incrementing values
+FASTNOISE_EXPORT void FillVectorSet(VectorSet* vectorSet, int xSize, int ySize, int zSize);
+
+//Fills VectorSet with incrementing values using sampleScale
+FASTNOISE_EXPORT void FillSamplingVectorSet(VectorSet* vectorSet, int sampleScale, int xSize, int ySize, int zSize);
+
+//Gets a VectorSet that works with simdLevel
+inline std::unique_ptr<VectorSet> GetVectorSet(int xSize, int ySize, int zSize, size_t simdLevel)
+{
+    std::unique_ptr<VectorSet> vectorSet(new VectorSet(simdLevel));
+    FillVectorSet(vectorSet.get(), xSize, ySize, zSize);
+    return vectorSet;
+}
+
+//Gets a VectorSet that works with simdLevel using sampleScale
+inline std::unique_ptr<VectorSet> GetSamplingVectorSet(int sampleScale, int xSize, int ySize, int zSize, size_t simdLevel)
+{
+    std::unique_ptr<VectorSet> vectorSet(new VectorSet(simdLevel));
+    FillSamplingVectorSet(vectorSet.get(), sampleScale, xSize, ySize, zSize);
+    return vectorSet;
+}
+
+//Internal, registers NoiseSIMD classes
+FASTNOISE_EXPORT bool registerNoiseSimd(SIMDType type, NewNoiseSimdFunc createFunc, AlignedSizeFunc alignedSizeFunc, GetEmptySetFunc getEmptySetFunc);
+
+FASTNOISE_EXPORT float CalculateFractalBounding(int octaves, float gain);
+
 class FASTNOISE_EXPORT NoiseSIMD
 {
 public:
-    // Loads all available simd libraries
-    static bool loadSimd(std::string directory);
-    static size_t GetFastestSIMD();
-
-    // Creates new NoiseSIMD for the highest supported instuction set of the CPU 
-    static NoiseSIMD* New(int seed=1337);
-
-    // Returns highest detected level of CPU support
-    // 5: ARM NEON
-    // 4: AVX-512F
-    // 3: AVX2 & FMA3
-    // 2: SSE4.1
-    // 1: SSE2
-    // 0: Fallback, no SIMD support
-    static size_t GetSIMDLevel(void);
-
-    // Sets the SIMD level for newly created NoiseSIMD objects
-    // 5: ARM NEON
-    // 4: AVX-512F
-    // 3: AVX2 & FMA3
-    // 2: SSE4.1
-    // 1: SSE2
-    // 0: Fallback, no SIMD support
-    // -1: Auto-detect fastest supported (Default)
-    // Caution: Setting this manually can cause crashes on CPUs that do not support that level
-    // Caution: Changing this after creating NoiseSIMD objects has undefined behaviour
-    static bool SetSIMDLevel(SIMDType type)
-    {
-        size_t index=(size_t)type;
-
-        if(index>=m_noiseSimds.size())
-            return false;
-        if(!m_noiseSimds[index].createFunc)
-            return false;
-
-        s_currentSIMDLevel=index;
-        return true;
-    }
-
-    // Free a noise set from memory
-    static void FreeNoiseSet(float* noiseSet);
-
-    // Create an empty (aligned) noise set for use with FillNoiseSet()
-    static float* GetEmptySet(size_t size);
-
-    // Create an empty (aligned) noise set for use with FillNoiseSet()
-    static float* GetEmptySet(size_t xSize, size_t ySize, size_t zSize) { return GetEmptySet(xSize*ySize*zSize); }
-
-    // Rounds the size up to the nearest aligned size for the current SIMD level
-    static size_t AlignedSize(size_t size);
-
-
     virtual ~NoiseSIMD() {}
+
+    // Returns SIMD level that class was created with
+    size_t GetSIMDLevel(void) { return m_SIMDLevel; }
 
     // Returns seed used for all noise types
     int GetSeed(void) const { return m_noiseDetails.seed; }
@@ -295,25 +392,8 @@ public:
     // Default: 0.5
     void SetFractalGain(float gain) { m_noiseDetails.gain=gain; m_noiseDetails.fractalBounding=CalculateFractalBounding(m_noiseDetails.octaves, m_noiseDetails.gain); }
 
-    //	// Sets method for combining octaves in all fractal noise types
-    //	// Default: FBM
-    //	void SetFractalType(FractalType fractalType) { m_fractalType = fractalType; }
-
-
-    //	// Sets return type from cellular noise calculations
-    //	// Default: Distance
-    //	void SetCellularReturnType(CellularReturnType cellularReturnType) { m_cellularReturnType = cellularReturnType; }
-    //
-    //	// Sets distance function used in cellular noise calculations
-    //	// Default: Euclidean
-    //	void SetCellularDistanceFunction(CellularDistanceFunction cellularDistanceFunction) { m_cellularDistanceFunction = cellularDistanceFunction; }
-
-    //	// Sets the type of noise used if cellular return type is set the NoiseLookup
-    //	// Default: Simplex
-    //	void SetCellularNoiseLookupType(NoiseType cellularNoiseLookupType) { m_cellularNoiseLookupType = cellularNoiseLookupType; }
-
-        // Sets relative frequency on the cellular noise lookup return type
-        // Default: 0.2
+    // Sets relative frequency on the cellular noise lookup return type
+    // Default: 0.2
     void SetCellularNoiseLookupFrequency(float cellularNoiseLookupFrequency) { m_noiseDetails.cellularNoiseLookupFrequency=cellularNoiseLookupFrequency; }
 
     // Sets the 2 distance indicies used for distance2 return types
@@ -326,7 +406,6 @@ public:
     // Setting this high will make artifacts more common
     // Default: 0.45
     void SetCellularJitter(float cellularJitter) { m_noiseDetails.cellularJitter=cellularJitter; }
-
 
     //	// Enables position perturbing for all noise types
     //	// Default: None
@@ -357,81 +436,53 @@ public:
     // Default: 1.0
     void SetPerturbNormaliseLength(float perturbNormaliseLength) { m_perturbDetails.NormaliseLength=perturbNormaliseLength; }
 
+    // Gets float buffer compatiable with the classes SIMD level
+    FloatBuffer GetEmptySet(size_t xSize, size_t ySize, size_t zSize)
+    {
+        return FastNoise::GetEmptySet(xSize*ySize*zSize, m_SIMDLevel);
+    }
 
-    static VectorSet* GetVectorSet(int xSize, int ySize, int zSize);
-    static VectorSet* GetSamplingVectorSet(int sampleScale, int xSize, int ySize, int zSize);
-    static void FillVectorSet(VectorSet* vectorSet, int xSize, int ySize, int zSize);
-    static void FillSamplingVectorSet(VectorSet* vectorSet, int sampleScale, int xSize, int ySize, int zSize);
+    // Gets float buffer compatiable with the classes SIMD level, and fills it
+    FloatBuffer GetNoiseSet(int xStart, int yStart, int zStart, int xSize, int ySize, int zSize, float scaleModifier=1.0f)
+    {
+        FloatBuffer noiseSet=FastNoise::GetEmptySet(xSize*ySize*zSize, m_SIMDLevel);
 
-    float* GetNoiseSet(int xStart, int yStart, int zStart, int xSize, int ySize, int zSize, float scaleModifier=1.0f);
+        FillSet(noiseSet.get(), xStart, yStart, zStart, xSize, ySize, zSize, scaleModifier);
+
+        return noiseSet;
+    }
+
+    // Fills float buffer with noise selected in the class starting from nStart, with nSize
     virtual void FillSet(float* noiseSet, int xStart, int yStart, int zStart, int xSize, int ySize, int zSize, float scaleModifier=1.0f);
+
+    // Fills float buffer with noise selected in the class using VectorSet as sample positions
     virtual void FillSet(float* noiseSet, VectorSet* vectorSet, float xOffset=0.0f, float yOffset=0.0f, float zOffset=0.0f);
 
-    static bool registerNoiseSimd(SIMDType type, NewNoiseSimdFunc createFunc, AlignedSizeFunc alignedSizeFunc, GetEmptySetFunc getEmptySetFunc);
+    // Gets VectorSet compatiable with the classes SIMD level
+    std::unique_ptr<VectorSet> GetVectorSet(int xSize, int ySize, int zSize)
+    {
+        return FastNoise::GetVectorSet(xSize, ySize, zSize, m_SIMDLevel);
+    }
+
+    // Gets VectorSet compatiable with the classes SIMD level, using sampleScale
+    std::unique_ptr<VectorSet> GetSamplingVectorSet(int sampleScale, int xSize, int ySize, int zSize)
+    {
+        return FastNoise::GetSamplingVectorSet(sampleScale, xSize, ySize, zSize, m_SIMDLevel);
+    }
 
 protected:
     NoiseDetails m_noiseDetails;
-//    int m_seed=1337;
-//    float m_frequency=0.01f;
-    NoiseType m_noiseType =NoiseType::SimplexFractal;
+    NoiseType m_noiseType=NoiseType::SimplexFractal;
+    FractalType m_fractalType=FractalType::FBM;
 
-//    float m_xScale=1.0f;
-//    float m_yScale=1.0f;
-//    float m_zScale=1.0f;
-//
-//    int m_octaves=3;
-//    float m_lacunarity=2.0f;
-//    float m_gain=0.5f;
-    FractalType m_fractalType =FractalType::FBM;
-//    float m_fractalBounding;
+    CellularDistance m_cellularDistance=CellularDistance::Euclidean;
+    CellularReturnType m_cellularReturnType=CellularReturnType::Distance;
+    NoiseType m_cellularNoiseLookupType=NoiseType::Simplex;
 
-    CellularDistance m_cellularDistance = CellularDistance::Euclidean;
-    CellularReturnType m_cellularReturnType = CellularReturnType::Distance;
-    NoiseType m_cellularNoiseLookupType = NoiseType::Simplex;
-//    float m_cellularNoiseLookupFrequency=0.2f;
-//    int m_cellularDistanceIndex0=0;
-//    int m_cellularDistanceIndex1=1;
-//    float m_cellularJitter=0.45f;
-
-    PerturbType m_perturbType =PerturbType::None;
-    //	float m_perturbAmp = 1.0f;
-    //	float m_perturbFrequency = 0.5f;
-    //
-    //	int m_perturbOctaves = 3;
-    //	float m_perturbLacunarity = 2.0f;
-    //	float m_perturbGain = 0.5f;
-    //	float m_perturbFractalBounding;
-    //	float m_perturbNormaliseLength = 1.0f;
+    PerturbType m_perturbType=PerturbType::None;
     PerturbDetails m_perturbDetails;
 
-    static size_t s_currentSIMDLevel;
-    static std::vector<NoiseFuncs> m_noiseSimds;
-    static float CalculateFractalBounding(int octaves, float gain);
-};
-
-struct FASTNOISE_EXPORT VectorSet
-{
-public:
-    size_t size=-1;
-    float* xSet=nullptr;
-    float* ySet=nullptr;
-    float* zSet=nullptr;
-
-    // Only used for sampled vector sets
-    int sampleScale=0;
-    int sampleSizeX=-1;
-    int sampleSizeY=-1;
-    int sampleSizeZ=-1;
-
-    VectorSet() {}
-
-    VectorSet(size_t _size) { SetSize(_size); }
-
-    ~VectorSet() { Free(); }
-
-    void Free();
-
-    void SetSize(size_t _size);
+    size_t m_SIMDLevel;
 };
 
 }//namespace FastNoise

@@ -58,7 +58,7 @@ public:
     void FillSet(float* noiseSet, int xStart, int yStart, int zStart, int xSize, int ySize, int zSize, float scaleModifier) override;
     void FillWhiteNoiseSet(float* noiseSet, int xStart, int yStart, int zStart, int xSize, int ySize, int zSize, float scaleModifier);
 
-    void FillSet(float* noiseSet, VectorSet* vectorSet, float xOffset, float yOffset, float zOffset);
+    void FillSet(float* noiseSet, VectorSet* vectorSet, float xOffset, float yOffset, float zOffset) override;
 //    void FillSampledNoiseSet(float* noiseSet, int xStart, int yStart, int zStart, int xSize, int ySize, int zSize, int sampleScale);
 //    void FillSampledNoiseSet(float* noiseSet, VectorSet* vectorSet, float xOffset, float yOffset, float zOffset);
 };
