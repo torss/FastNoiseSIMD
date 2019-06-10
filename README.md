@@ -10,12 +10,15 @@ This is an altered version of [FastNoiseSIMD](https://github.com/Auburns/FastNoi
 # HastyNoise
 Hasty Noise is a noise library. It aims to provide high performance noise through the use of SIMD instructions on a variety of platforms. Vectorisation of the code allows noise functions to process data in sets of 4/8/16 increasing performance by 700% in some cases (Simplex).
 
+![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_perlinfractal.png)
+
 The library compiles a shared library for each of the SIMD instructions sets. During compile time the library will build the highest level of SIMD supported by the compilier and at runtime all of the SIMD libraries built are loaded and the highest supported instruction set is reported. By default the library will use the highest level of SIMD detected. If no support is found it will fallback to standard types (float/int).
 
 "We must not be hasty." - Treebeard
 
 ## Features
 
+- Preview App
 - Value Noise 3D
 - Perlin Noise 3D
 - Simplex Noise 3D
@@ -54,11 +57,6 @@ The library compiles a shared library for each of the SIMD instructions sets. Du
 - [FastNoiseSIMD](https://github.com/Auburns/FastNoiseSIMD)
 - [FastNoise](https://github.com/Auburns/FastNoise)
 - [CubicNoise](https://github.com/jobtalle/CubicNoise)
-
-# Preview
-Repo now includes a preview app that uses dear imgui to render various different types of noise.
-
-![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_perlinfractal.png)
 
 # Performance Comparisons
 Timings below timings are to generate 100x 64x64x64 (~26.2M) points of noise on a single thread.
