@@ -1,8 +1,9 @@
 
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=flat-square "License")](https://github.com/caseymcc/HastyNoise/blob/master/LICENSE)
+[![hunter](https://img.shields.io/badge/hunter-HastyNoise-blue.svg)](https://docs.hunter.sh/en/latest/packages/pkg/HastyNoise.html#pkg-hastynoise)
+[![discord](https://img.shields.io/discord/495955797872869376.svg?logo=discord "Discord")](https://discord.gg/BfceAsX)\
 [![travis](https://img.shields.io/travis/caseymcc/HastyNoise/master.svg?logo=travis&style=flat-square&label=Linux%20OSX "Travis CI")](https://travis-ci.org/caseymcc/HastyNoise)
 [![appveyor](https://img.shields.io/appveyor/ci/caseymcc/HastyNoise/master.svg?logo=appveyor&style=flat-square&label=Windows "AppVeyor CI")](https://ci.appveyor.com/project/caseymcc/hastynoise)
-[![discord](https://img.shields.io/discord/495955797872869376.svg?logo=discord "Discord")](https://discord.gg/BfceAsX)
 
 # Origins
 This is an altered version of [FastNoiseSIMD](https://github.com/Auburns/FastNoiseSIMD). All of the macros in the original version have been replace with templates allowing for a little better debugging. Also the library has been altered to create multiple shared libraries each compiled with the proper SIMD Instructions. The shared libraries are dynamically loaded by the main library.
