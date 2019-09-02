@@ -5,53 +5,55 @@
 [![travis](https://img.shields.io/travis/caseymcc/HastyNoise/master.svg?logo=travis&style=flat-square&label=Linux%20OSX "Travis CI")](https://travis-ci.org/caseymcc/HastyNoise)
 [![appveyor](https://img.shields.io/appveyor/ci/caseymcc/HastyNoise/master.svg?logo=appveyor&style=flat-square&label=Windows "AppVeyor CI")](https://ci.appveyor.com/project/caseymcc/hastynoise)
 
+## Wiki
+[Documentation](https://github.com/caseymcc/HastyNoise/wiki)
+
+![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_perlinfractal.png)
+
+## Features
+
+| Supported Noise   | Fractal | Perturb |
+|-------------------|:-------:|:-------:|
+| White             | no      | yes     |
+| Value             | yes     | yes     |
+| Perlin            | yes     | yes     |
+| Simplex           | yes     | yes     |
+| Cubic             | yes     | yes     |
+| Cellular (Worley) | no      | yes     |
+
+| Fractal Types | Perturb                    | Cellular Value   | Celllar Distance |
+|---------------|----------------------------|------------------|------------------|
+| FBM           | Gradient                   | Value            | Eucliden         |
+| Billow        | Gradient Fractal           | Distance         | Manhattan        |
+| RidgidMulti   | Normalize                  | Value Distance 2 | Natural          |
+|               | Gradient Normalize         | Distance 2       |                  |
+|               | Gradient Fractal Normalize | Distance 2 Add   |                  |
+|               |                            | Distance 2 Sub   |                  |
+|               |                            | Distance 2 Mul   |                  |
+|               |                            | Distance 2 Div   |                  |
+|               |                            | Lookup           |                  |
+|               |                            | Distance 2 Cave  |                  |
+
+## Supported Instruction/Compilers/Platforms
+| Instructions | Compilers          | Platforms  |
+|--------------|--------------------|------------|
+|~ARM NEON~*   | MSVC v140/v150     | Windows    |
+| AVX-512F     | GCC 7 Linux        | Linux      |
+| AVX2 - FMA3  | Clang Linux/MacOSX | ~Android~* |
+| SSE4.1       |                    | MacOSX     |
+| SSE2         |                    | ~iOs~*     |
+
+\* needs work
+
 # Origins
 This is an altered version of [FastNoiseSIMD](https://github.com/Auburns/FastNoiseSIMD). All of the macros in the original version have been replace with templates allowing for a little better debugging. Also the library has been altered to create multiple shared libraries each compiled with the proper SIMD Instructions. The shared libraries are dynamically loaded by the main library.
 
 # HastyNoise
 Hasty Noise is a noise library. It aims to provide high performance noise through the use of SIMD instructions on a variety of platforms. Vectorisation of the code allows noise functions to process data in sets of 4/8/16 increasing performance by 700% in some cases (Simplex).
 
-![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_perlinfractal.png)
-
 The library compiles a shared library for each of the SIMD instructions sets. During compile time the library will build the highest level of SIMD supported by the compilier and at runtime all of the SIMD libraries built are loaded and the highest supported instruction set is reported. By default the library will use the highest level of SIMD detected. If no support is found it will fallback to standard types (float/int).
 
 "We must not be hasty." - Treebeard
-
-## Features
-
-- Preview App
-- Value Noise 3D
-- Perlin Noise 3D
-- Simplex Noise 3D
-- Cubic Noise 3D
-- Multiple fractal options for all of the above
-- White Noise 3D
-- Cellular Noise 3D
-- Perturb input coordinates in 3D space
-- Integrated up-sampling
-- Easy to use 3D cave noise
-
-## Supported Instruction Sets
-- ~ARM NEON~ needs testing
-- AVX-512F
-- AVX2 - FMA3
-- SSE4.1
-- SSE2
-
-## Tested Compilers
-- MSVC v140/v150
-- GCC 7 Linux
-- Clang Linux/MacOSX
-
-## Tested Platforms
-- Windows
-- Linux
-- ~Android~ needs updates
-- MacOSX
-- ~iOs~ needs updates
-
-## Wiki
-[Docs](https://github.com/caseymcc/HastyNoise/wiki)
 
 ## Related repositories
 
