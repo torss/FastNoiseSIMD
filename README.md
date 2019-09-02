@@ -8,7 +8,15 @@
 ## Wiki
 [Documentation](https://github.com/caseymcc/HastyNoise/wiki)
 
+# HastyNoise
+Hasty Noise is a noise library. It aims to provide high performance noise through the use of SIMD instructions on a variety of platforms. Vectorisation of the code allows noise functions to process data in sets of 4/8/16 increasing performance by 700% in some cases (Simplex).
+
 ![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_perlinfractal.png)
+
+The library compiles a shared library for each of the SIMD instructions sets. During compile time the library will build the highest level of SIMD supported by the compilier and at runtime all of the SIMD libraries built are loaded and the highest supported instruction set is reported. By default the library will use the highest level of SIMD detected. If no support is found it will fallback to standard types (float/int).
+
+"We must not be hasty." - Treebeard
+
 
 ## Features
 
@@ -48,12 +56,7 @@
 # Origins
 This is an altered version of [FastNoiseSIMD](https://github.com/Auburns/FastNoiseSIMD). All of the macros in the original version have been replace with templates allowing for a little better debugging. Also the library has been altered to create multiple shared libraries each compiled with the proper SIMD Instructions. The shared libraries are dynamically loaded by the main library.
 
-# HastyNoise
-Hasty Noise is a noise library. It aims to provide high performance noise through the use of SIMD instructions on a variety of platforms. Vectorisation of the code allows noise functions to process data in sets of 4/8/16 increasing performance by 700% in some cases (Simplex).
 
-The library compiles a shared library for each of the SIMD instructions sets. During compile time the library will build the highest level of SIMD supported by the compilier and at runtime all of the SIMD libraries built are loaded and the highest supported instruction set is reported. By default the library will use the highest level of SIMD detected. If no support is found it will fallback to standard types (float/int).
-
-"We must not be hasty." - Treebeard
 
 ## Related repositories
 
