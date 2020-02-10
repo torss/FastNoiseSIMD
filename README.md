@@ -69,6 +69,7 @@ This is an altered version of [FastNoiseSIMD](https://github.com/Auburns/FastNoi
 Timings below timings are to generate 100x 64x64x64 (~26.2M) points of noise on a single thread.
 
 - CPU: Intel Core i7-5820K @ 3.3Ghz
+- OS: Windows 10
 - Compiler: Visual Studio 2017 x64
 
 |  Noise Type  | AVX512 |  AVX2  | SSE4.1 |  SSE2  |    None   |
@@ -80,6 +81,22 @@ Timings below timings are to generate 100x 64x64x64 (~26.2M) points of noise on 
 | OpenSimplex2 |        |  218ms |  451ms |  471ms |    6683ms |
 | Cellular     |        |  915ms | 2095ms | 2218ms |   16388ms |
 | Cubic        |        |  668ms | 1370ms | 2336ms |    5698ms |
+
+
+- CPU: Intel Xeon W-2125 @ 4.0Ghz
+- OS: Ubuntu 18.04
+- Compiler: gcc 7+ -O3
+
+|  Noise Type  | AVX512 |  AVX2  | SSE4.1 |  SSE2  |    None   |
+|--------------|--------|--------|--------|--------|-----------|
+| White Noise  |    3ms |    4ms |    8ms |   18ms |      21ms |
+| Value        |   50ms |   80ms |  161ms |  263ms |     509ms |
+| Perlin       |   62ms |  163ms |  366ms |  445ms |    1556ms |
+| Simplex      |   59ms |  155ms |  300ms |  339ms |    1129ms |
+| OpenSimplex2 |   82ms |  175ms |  313ms |  421ms |    1683ms |
+| Cellular     |  328ms |  580ms | 1316ms | 1358ms |    6145ms |
+| Cubic        |  257ms |  490ms |  984ms | 1790ms |    2567ms |
+
 
 # Examples
 ![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_simplexfractal.png)
