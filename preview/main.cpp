@@ -481,16 +481,48 @@ int main(int argc, char ** argv)
 
         ImGui::End();
 
-        int imageWidth=g_windowInfo.width-350-20;
-        int imageHeight=g_windowInfo.height-20;
+//        int imageWidth=g_windowInfo.width-350-20;
+//        int imageHeight=g_windowInfo.height-20;
+        int imageWindowWidth=g_windowInfo.width-350;
+        int imageWindowHeight=g_windowInfo.height;
 
         ImGui::SetNextWindowPos({350, 0});
-        ImGui::SetNextWindowSize({(float)(g_windowInfo.width-350), (float)g_windowInfo.height});
+        ImGui::SetNextWindowSize({(float)imageWindowWidth, (float)g_windowInfo.height});
+
         ImGui::Begin("Image", &show,
             ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize);
         
+        ImVec2 lastDrawPos=ImGui::GetCursorPos();
+
+        int imageWidth=imageWindowWidth-(2*lastDrawPos.y)-2.0f;//margin, -2.0f border
+        int imageHeight=imageWindowHeight-(2*lastDrawPos.y)-2.0f;//margin, -2.0f border
+
+        float ratioX=(float)imageWidth/currentNoiseSizeX;
+        float ratioY=(float)imageHeight/currentNoiseSizeY;
+
+        ImVec2 textureStart=lastDrawPos;
+        ImVec2 textureSize(imageWidth, imageHeight);
+
+        if(ratioX<ratioY)
+        {
+            textureSize.y=ratioX*currentNoiseSizeY;
+            textureStart.y=lastDrawPos.y+(imageHeight-textureSize.y)/2.0f;
+        }
+        else
+        {
+            textureSize.x=ratioY*currentNoiseSizeX;
+            textureStart.x=lastDrawPos.x+(imageWidth-textureSize.x)/2.0f;
+        }
+        lastDrawPos=textureStart;
+        ImGui::SetCursorPos(textureStart);
+
+        ImVec2 lastDrawSize;
+
+        lastDrawSize.x=textureSize.x;
+        lastDrawSize.y=textureSize.y;
+
         if(noiseTextureValid)
-            ImGui::Image((ImTextureID)noiseTextureId, {(float)imageWidth, (float)imageHeight}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 0.5f});
+            ImGui::Image((ImTextureID)noiseTextureId, {(float)textureSize.x, (float)textureSize.y}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 0.5f});
 
         ImGui::End();
 

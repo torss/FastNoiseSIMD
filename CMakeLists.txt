@@ -277,6 +277,14 @@ if(HN_SIMD_AVX512)
     target_link_libraries(hastyNoise_avx512 hastyNoise)
 endif()
 
+if(HN_BUILD_APP OR HN_PREVIEW_APP)
+#add launcher for apps
+    hunter_add_package(CreateLaunchers)
+    find_package(CreateLaunchers CONFIG REQUIRED)
+
+    include(CreateLaunchers)
+endif()
+
 if(HN_BUILD_APP)
     include_directories(${CMAKE_CURRENT_LIST_DIR})
     add_executable(hastyNoiseApp testApp/main.cpp)
@@ -312,6 +320,16 @@ if(HN_BUILD_APP)
     if(HN_SIMD_AVX512)
         add_dependencies(hastyNoiseApp hastyNoise_avx512)
     endif()
+
+    set(hastyNoiseApp_enviroment_dir)
+    foreach(target ${hastyNoise_external_lib})
+        list(APPEND hastyNoiseApp_enviroment_dir "$<TARGET_FILE_DIR:${target}>")
+    endforeach()
+
+    create_target_launcher(hastyNoiseApp
+        RUNTIME_LIBRARY_DIRS "${hastyNoiseApp_enviroment_dir}"
+        WORKING_DIRECTORY "$<TARGET_FILE_DIR:hastyNoiseApp>"
+    )
 endif()
 
 if(HN_PREVIEW_APP)
@@ -339,11 +357,6 @@ if(HN_PREVIEW_APP)
     endif()
 
     #create launcher that will include hunter paths
-    hunter_add_package(CreateLaunchers)
-    find_package(CreateLaunchers CONFIG REQUIRED)
-
-    include(CreateLaunchers)
-
     set(hastyPreviewApp_enviroment_dir)
     foreach(target ${hastyNoise_external_lib})
         list(APPEND hastyPreviewApp_enviroment_dir "$<TARGET_FILE_DIR:${target}>")
@@ -352,7 +365,7 @@ if(HN_PREVIEW_APP)
 
     create_target_launcher(hastyPreviewApp
         RUNTIME_LIBRARY_DIRS "${hastyPreviewApp_enviroment_dir}"
-        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        WORKING_DIRECTORY "$<TARGET_FILE_DIR:hastyPreviewApp>"
     )
 endif()
 
