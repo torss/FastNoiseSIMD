@@ -46,8 +46,13 @@ struct SIMD<SIMDType::Neon>
     }
     static Float div(Float a, Float b) { v_div(a, b); }
 
+#ifdef HN_USE_FMA
     static Float mulAdd(Float a, Float b, Float c) { return vmlaq_f32(b, c, a); }
     static Float nmulAdd(Float a, Float b, Float c) { return vmlaq_f32(b, c, a); }
+#else
+    static Float mulAdd(Float a, Float b, Float c) { return add(mulf(a, b), c); }
+    static Float nmulAdd(Float a, Float b, Float c) { return sub(c, mulf(a, b)); }
+#endif
     static Float mulSub(Float a, Float b, Float c) { return sub(mulf(a, b), c); }
 
     static Float min(Float a, Float b) { vminq_f32(a, b); }
@@ -62,6 +67,7 @@ struct SIMD<SIMDType::Neon>
     static Float and(Float a, Float b) { Float cast(vandq_s32(vreinterpretq_s32_f32(a), vreinterpretq_s32_f32(b))); }
     static Float andNot(Float a, Float b) { Float cast(vandq_s32(vmvnq_s32(vreinterpretq_s32_f32(a)), vreinterpretq_s32_f32(b))); }
     static Float xor(Float a, Float b) { cast(veorq_s32(vreinterpretq_s32_f32(a), vreinterpretq_s32_f32(b))); }
+    static Float or(Float a, Float b) { cast(vorrq_s32(vreinterpretq_s32_f32(a), vreinterpretq_s32_f32(b))); }
 
 #ifndef __aarch64__
     static Float VECTORCALL v_floor(Float a)
