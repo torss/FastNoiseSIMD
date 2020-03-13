@@ -1,107 +1,108 @@
-<h1 align="center">
-    FastNoise SIMD
-</h1>
-<p align="center">
-    <a href="https://travis-ci.org/open-terra/terra">
-        <img src="https://img.shields.io/travis/c0rp3n/fastnoise-simd/master.svg?label=Travis&style=flat-square&logo=travis" alt="Travis Build Status">
-    </a>
-    <a href="https://ci.appveyor.com/project/C0RP3N/terra">
-        <img src="https://img.shields.io/appveyor/ci/C0RP3N/fastnoise-simd/master.svg?label=AppVeyor&style=flat-square&logo=appveyor" alt="Appveyor Build Status">
-    </a>
-    <br>
-    <strong>FastNoise SIMD is the SIMD implementation of <a href="https://github.com/Auburns/FastNoise">FastNoise</a>.</strong>
-</p>
 
-FastNoise SIMD aims to provide faster performance through the use of intrinsic(SIMD) CPU functions. Vectorisation of the code allows noise functions to process data in sets of 4/8/16 increasing performance by 700% in some cases (Simplex).
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=flat-square "License")](https://github.com/caseymcc/HastyNoise/blob/master/LICENSE)
+[![hunter](https://img.shields.io/badge/hunter-HastyNoise-blue.svg)](https://docs.hunter.sh/en/latest/packages/pkg/HastyNoise.html#pkg-hastynoise)
+[![discord](https://img.shields.io/discord/495955797872869376.svg?logo=discord "Discord")](https://discord.gg/BfceAsX)\
+[![travis](https://img.shields.io/travis/caseymcc/HastyNoise/master.svg?logo=travis&style=flat-square&label=Linux%20OSX "Travis CI")](https://travis-ci.org/caseymcc/HastyNoise)
+[![appveyor](https://img.shields.io/appveyor/ci/caseymcc/HastyNoise/master.svg?logo=appveyor&style=flat-square&label=Windows "AppVeyor CI")](https://ci.appveyor.com/project/caseymcc/hastynoise)
 
-Inspired by [FastNoise SIMD](https://github.com/jackmott/FastNoise-SIMD) (naming is coincidence). FastNoise SIMD was created with even more optimisation thanks to the removal of lookup tables.
+## Wiki
+[Documentation](https://github.com/caseymcc/HastyNoise/wiki)
 
-Runtime detection of highest supported instruction set ensures the fastest possible performance with only 1 compile needed. If no support is found it will fallback to standard types (float/int).
+# HastyNoise
+Hasty Noise is a noise library. It aims to provide high performance noise through the use of SIMD instructions on a variety of platforms. Vectorisation of the code allows noise functions to process data in sets of 4/8/16 increasing performance by 700% in some cases (Simplex).
+
+![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_perlinfractal.png)
+
+The library compiles a shared library for each of the SIMD instructions sets. During compile time the library will build the highest level of SIMD supported by the compilier and at runtime all of the SIMD libraries built are loaded and the highest supported instruction set is reported. By default the library will use the highest level of SIMD detected. If no support is found it will fallback to standard types (float/int).
+
+"We must not be hasty." - Treebeard
+
 
 ## Features
 
-- Value Noise 3D
-- Perlin Noise 3D
-- Simplex Noise 3D
-- Cubic Noise 3D
-- Multiple fractal options for all of the above
-- White Noise 3D
-- Cellular Noise 3D
-- Perturb input coordinates in 3D space
-- Integrated up-sampling
-- Easy to use 3D cave noise
+| Supported Noise   | Fractal | Perturb |
+|-------------------|:-------:|:-------:|
+| White             | no      | yes     |
+| Value             | yes     | yes     |
+| Perlin            | yes     | yes     |
+| Simplex           | yes     | yes     |
+| OpenSimplex2      | yes     | yes     |
+| Cubic             | yes     | yes     |
+| Cellular (Worley) | no      | yes     |
 
-Credit to [CubicNoise](https://github.com/jobtalle/CubicNoise) for the cubic noise algorithm
+| Fractal Types | Perturb                    | Cellular Value   | Celllar Distance |
+|---------------|----------------------------|------------------|------------------|
+| FBM           | Gradient                   | Value            | Eucliden         |
+| Billow        | Gradient Fractal           | Distance         | Manhattan        |
+| RidgidMulti   | Normalize                  | Value Distance 2 | Natural          |
+|               | Gradient Normalize         | Distance 2       |                  |
+|               | Gradient Fractal Normalize | Distance 2 Add   |                  |
+|               |                            | Distance 2 Sub   |                  |
+|               |                            | Distance 2 Mul   |                  |
+|               |                            | Distance 2 Div   |                  |
+|               |                            | Lookup           |                  |
+|               |                            | Distance 2 Cave  |                  |
 
-## Supported Instruction Sets
-- ARM NEON
-- AVX-512F
-- AVX2 - FMA3
-- SSE4.1
-- SSE2
+## Supported Instruction/Compilers/Platforms
+| Instructions | Compilers          | Platforms  |
+|--------------|--------------------|------------|
+|~ARM NEON~*   | MSVC v140/v150     | Windows    |
+| AVX-512F     | GCC 7 Linux        | Linux      |
+| AVX2 - FMA3  | Clang Linux/MacOSX | ~Android~* |
+| SSE4.1       |                    | MacOSX     |
+| SSE2         |                    | ~iOs~*     |
 
-## Tested Compilers
-- MSVC v120/v140
-- Intel 16.0
-- GCC 4.7 Linux
-- Clang MacOSX
+\* needs work
 
-## Wiki
-[Docs](https://github.com/Auburns/FastNoiseSIMD/wiki)
+# Origins
+This is an altered version of [FastNoiseSIMD](https://github.com/Auburns/FastNoiseSIMD). All of the macros in the original version have been replace with templates allowing for a little better debugging. Also the library has been altered to create multiple shared libraries each compiled with the proper SIMD Instructions. The shared libraries are dynamically loaded by the main library.
+
+
 
 ## Related repositories
 
+- [FastNoiseSIMD](https://github.com/Auburns/FastNoiseSIMD)
 - [FastNoise](https://github.com/Auburns/FastNoise)
-- [PyFastNoiseSIMD](https://github.com/robbmcleod/PyFastNoiseSIMD)
-
-# FastNoise SIMD Preview
-
-I have written a compact testing application for all the features included in FastNoiseSIMD with a visual representation. I use this for development purposes and testing noise settings used in terrain generation. The fastest supported instruction set is also reported.
-
-Download links can be found in the [Releases Section](https://github.com/Auburns/FastNoiseSIMD/releases).
-
-![Simplex Fractal](http://i.imgur.com/45JkT5j.png)
+- [CubicNoise](https://github.com/jobtalle/CubicNoise)
 
 # Performance Comparisons
-Using default noise settings on FastNoise SIMD and matching those settings across the other libraries where possible.
+Timings below timings are to generate 100x 64x64x64 (~26.2M) points of noise on a single thread.
 
-Timings below are x1000 ns to generate 32x32x32 points of noise on a single thread.
+- CPU: Intel Core i7-5820K @ 3.3Ghz
+- OS: Windows 10
+- Compiler: Visual Studio 2017 x64
 
-- CPU: Intel Xeon Skylake @ 2.0Ghz
-- Compiler: Intel 17.0 x64
+|  Noise Type  | AVX512 |  AVX2  | SSE4.1 |  SSE2  |    None   |
+|--------------|--------|--------|--------|--------|-----------|
+| White Noise  |        |    9ms |   18ms |   21ms |      48ms |
+| Value        |        |  114ms |  243ms |  282ms |    2071ms |
+| Perlin       |        |  193ms |  416ms |  534ms |    2816ms |
+| Simplex      |        |  198ms |  372ms |  474ms |    2769ms |
+| OpenSimplex2 |        |  218ms |  451ms |  471ms |    6683ms |
+| Cellular     |        |  915ms | 2095ms | 2218ms |   16388ms |
+| Cubic        |        |  668ms | 1370ms | 2336ms |    5698ms |
 
-| Noise Type  | AVX512 | AVX2 | SSE4.1 | SSE2 | FastNoise | LibNoise |
-|-------------|--------|------|--------|------|-----------|----------|
-| White Noise | 7      | 9    | 16     | 29   | 141       |          |
-| Value       | 92     | 152  | 324    | 436  | 642       |          |
-| Perlin      | 147    | 324  | 592    | 795  | 1002      | 1368     |
-| Simplex     | 129    | 294  | 548    | 604  | 1194      |          |
-| Cellular    | 851    | 1283 | 2679   | 2959 | 2979      | 58125    |
-| Cubic       | 615    | 952  | 1970   | 3516 | 2979      |          |
 
-Comparison of fractals and sampling performance [here](https://github.com/Auburns/FastNoiseSIMD/wiki/In-depth-SIMD-level).
+- CPU: Intel Xeon W-2125 @ 4.0Ghz
+- OS: Ubuntu 18.04
+- Compiler: gcc 7+ -O3
+
+|  Noise Type  | AVX512 |  AVX2  | SSE4.1 |  SSE2  |    None   |
+|--------------|--------|--------|--------|--------|-----------|
+| White Noise  |    3ms |    4ms |    8ms |   18ms |      21ms |
+| Value        |   50ms |   80ms |  161ms |  263ms |     509ms |
+| Perlin       |   62ms |  163ms |  366ms |  445ms |    1556ms |
+| Simplex      |   59ms |  155ms |  300ms |  339ms |    1129ms |
+| OpenSimplex2 |   82ms |  175ms |  313ms |  421ms |    1683ms |
+| Cellular     |  328ms |  580ms | 1316ms | 1358ms |    6145ms |
+| Cubic        |  257ms |  490ms |  984ms | 1790ms |    2567ms |
+
 
 # Examples
-### Cellular Noise
-![Cellular Noise](http://i.imgur.com/RshUkoe.png)
-
-![Cellular Noise](http://i.imgur.com/PjPYBXu.png)
-
-![Cellular Noise](http://i.imgur.com/hyKjIuH.png)
-
-[Cave noise example](https://www.youtube.com/watch?v=Df4Hidvq11M)
-
-### Fractal Noise
-![Simplex Fractal Billow](http://i.imgur.com/gURJtpc.png)
-
-![Perlin Fractal Billow](http://i.imgur.com/IcjbpYz.png)
-
-### Value Noise
-![Value Noise](http://i.imgur.com/Ss22zRs.png)
-
-### White Noise
-![White Noise](http://i.imgur.com/wcTlyek.png)
-
-### Perturb
-![Perturbed Cellular Noise](http://i.imgur.com/xBKGo1E.png)
-
+![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_simplexfractal.png)
+![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_simplexfractal_billow.png)
+![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_cellularvalue.png)
+![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_cellulardistance2add.png)
+![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_cellulardistance2div_inv.png)
+![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_value.png)
+![preview](https://github.com/caseymcc/HastyNoise/raw/master/examples/preview_whitenoise.png)
