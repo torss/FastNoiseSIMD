@@ -1,16 +1,21 @@
 cmake_minimum_required(VERSION 3.10)
 
+if(NOT DEFINED PROJECT_NAME)
+  set(NOT_SUBPROJECT ON)
+endif()
+
 string(COMPARE EQUAL "$ENV{TRAVIS}" "true" is_travis)
 string(COMPARE EQUAL "$ENV{APPVEYOR}" "True" is_appveyor)
 
 option(HN_FAST_INVSQRT "Use fast inverse sqrt" OFF)
 option(HN_BUILD_APP "Build test app" OFF)
-option(HN_PREVIEW_APP "Build preview app" ON)
+option(HN_PREVIEW_APP "Build preview app" NOT_SUBPROJECT)
+option(HN_HUNTER "Enable the Hunter package manager" NOT_SUBPROJECT)
 
 #Using FMA instructions with AVX(51)2/NEON provides a small performance increase but can cause 
 #minute variations in noise output compared to other SIMD levels due to higher calculation precision
 #Intel compiler will always generate FMA instructions, use /Qfma- or -no-fma to disable
-option(HN_USE_FMA "Use fused multiply/add, adds small performance to avx2/avx512/neon but output will differ minutely to other SIMD versions" ON)
+option(HN_USE_FMA "Use fused multiply/add, adds small performance to avx2/avx512/neon but output will differ minutely to other SIMD versions" OFF)
 
 if(is_travis OR is_appveyor)
     set(HN_BUILD_APP ON CACHE BOOL "Build test app" FORCE) #force building app on CI
@@ -28,13 +33,15 @@ message(STATUS "is_appveyor: ${is_appveyor}")
 message(STATUS "HN_BUILD_APP: ${HN_BUILD_APP}")
 message(STATUS "HN_PREVIEW_APP: ${HN_PREVIEW_APP}")
 
-include(${CMAKE_CURRENT_LIST_DIR}/cmake/Hunter/HunterGate.cmake)
+if(HN_HUNTER)
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/Hunter/HunterGate.cmake)
 
-HunterGate(
-    URL "https://github.com/ruslo/hunter/archive/v0.23.181.tar.gz"
-    SHA1 "270cafa2d67def4ad4d52409ff22a28890d41c84"
-    LOCAL
-)
+    HunterGate(
+        URL "https://github.com/ruslo/hunter/archive/v0.23.181.tar.gz"
+        SHA1 "270cafa2d67def4ad4d52409ff22a28890d41c84"
+        LOCAL
+    )
+endif()
 
 project(HastyNoise VERSION 0.8.0)
 
@@ -61,7 +68,7 @@ set(HN_SIMD_NEON OFF)
 set(HN_NO_FILESYSTEM 0)
 set(HN_STD_FILESYSTEM 1)
 set(HN_EXPERIMENTAL_FILESYSTEM 2)
-set(HN_USE_FILESYSTEM ${HN_NO_FILESYSTEM})
+set(HN_USE_FILESYSTEM ${HN_STD_FILESYSTEM})
 
 set(HN_ARM64 OFF)
 
